@@ -1,98 +1,76 @@
 package com.smart.reporting.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "t_event_cat")
 public class TEventCat {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // Surrogate key for JPA (not in table, but needed for entity identity)
+    @Column(name = "cat_id")
+    private Integer catId;
 
     @Column(name = "event_id", length = 36, nullable = false)
     private String eventId;
 
-    @Column(length = 100, nullable = false)
+    @Column(name = "cat", length = 100, nullable = false)
     private String cat;
 
-    @Column(length = 100, nullable = false)
+    @Column(name = "category", length = 100, nullable = false)
     private String category;
 
-    @Column(nullable = false, precision = 10, scale = 0)
+    @Column(name = "distance", nullable = false, precision = 10, scale = 0)
     private BigDecimal distance;
 
-    @Column(length = 100, nullable = false)
+    @Column(name = "race", length = 100, nullable = false)
     private String race;
 
-    @Column(length = 100, nullable = false)
+    @Column(name = "gender", length = 100, nullable = false)
     private String gender;
 
-    @Column
-    private Integer guntime;
+    @Column(name = "Timegun")
+    private Integer timegun;
 
-    @Column
-    private Integer guntime1;
+    @Column(name = "Timegun1")
+    private Integer timegun1;
 
-    @Column
-    private Integer guntime2;
+    @Column(name = "Timegun2")
+    private Integer timegun2;
 
-    @Column
-    private Integer guntime3;
+    @Column(name = "Timegun3")
+    private Integer timegun3;
 
-    @Column
-    private Integer guntime4;
+    @Column(name = "Timegun4")
+    private Integer timegun4;
 
-    @Column
-    private Integer guntime5;
+    @Column(name = "Timegun5")
+    private Integer timegun5;
 
-    @Column
-    private Integer guntime6;
+    @Column(name = "Timegun6")
+    private Integer timegun6;
 
-    // Constructors
-    public TEventCat() {}
+    @Column(name = "CPLIST", length = 200)
+    private String cplist;
 
-    // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    @Column(name = "is_Lap")
+    private Byte isLap;
 
-    public String getEventId() { return eventId; }
-    public void setEventId(String eventId) { this.eventId = eventId; }
+    @Column(name = "racemode", length = 100)
+    private String racemode;
 
-    public String getCat() { return cat; }
-    public void setCat(String cat) { this.cat = cat; }
+    @Column(name = "Top")
+    private Integer top;
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    @Column(name = "is_Live")
+    private Integer isLive;
 
-    public BigDecimal getDistance() { return distance; }
-    public void setDistance(BigDecimal distance) { this.distance = distance; }
+    @Column(name = "is_result")
+    private Integer isResult;
 
-    public String getRace() { return race; }
-    public void setRace(String race) { this.race = race; }
-
-    public String getGender() { return gender; }
-    public void setGender(String gender) { this.gender = gender; }
-
-    public Integer getGuntime() { return guntime; }
-    public void setGuntime(Integer guntime) { this.guntime = guntime; }
-
-    public Integer getGuntime1() { return guntime1; }
-    public void setGuntime1(Integer guntime1) { this.guntime1 = guntime1; }
-
-    public Integer getGuntime2() { return guntime2; }
-    public void setGuntime2(Integer guntime2) { this.guntime2 = guntime2; }
-
-    public Integer getGuntime3() { return guntime3; }
-    public void setGuntime3(Integer guntime3) { this.guntime3 = guntime3; }
-
-    public Integer getGuntime4() { return guntime4; }
-    public void setGuntime4(Integer guntime4) { this.guntime4 = guntime4; }
-
-    public Integer getGuntime5() { return guntime5; }
-    public void setGuntime5(Integer guntime5) { this.guntime5 = guntime5; }
-
-    public Integer getGuntime6() { return guntime6; }
-    public void setGuntime6(Integer guntime6) { this.guntime6 = guntime6; }
 }

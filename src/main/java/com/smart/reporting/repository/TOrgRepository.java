@@ -4,7 +4,13 @@ import com.smart.reporting.entity.TOrg;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional;
+
 @Repository
 public interface TOrgRepository extends JpaRepository<TOrg, String> {
-    // You can add custom query methods here if needed
+    List<TOrg> findByIsActive(Boolean isActive);
+
+    // Use Optional<TOrg> for findById, or just use the inherited JpaRepository method
+    Optional<TOrg> findById(String id);
 }

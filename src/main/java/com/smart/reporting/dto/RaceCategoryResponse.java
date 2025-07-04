@@ -3,27 +3,27 @@ package com.smart.reporting.dto;
 import java.math.BigDecimal;
 
 public class RaceCategoryResponse {
-    private Long id;
+    private Integer catId;
     private String eventId;
     private String cat;
     private String category;
     private BigDecimal distance;
     private String race;
     private String gender;
-    private Integer guntime;
-    private Integer guntime1;
-    private Integer guntime2;
-    private Integer guntime3;
-    private Integer guntime4;
-    private Integer guntime5;
-    private Integer guntime6;
+    private Integer timegun;
+    private Integer timegun1;
+    private Integer timegun2;
+    private Integer timegun3;
+    private Integer timegun4;
+    private Integer timegun5;
+    private Integer timegun6;
 
-    public Long getId() {
-        return id;
+    public Integer getCatId() {
+        return catId;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setCatId(Integer catId) {
+        this.catId = catId;
     }
 
     public String getEventId() {
@@ -74,59 +74,59 @@ public class RaceCategoryResponse {
         this.gender = gender;
     }
 
-    public Integer getGuntime() {
-        return guntime;
+    public Integer getTimegun() {
+        return timegun;
     }
 
-    public void setGuntime(Integer guntime) {
-        this.guntime = guntime;
+    public void setTimegun(Integer guntime) {
+        this.timegun = guntime;
     }
 
-    public Integer getGuntime1() {
-        return guntime1;
+    public Integer getTimegun1() {
+        return timegun1;
     }
 
-    public void setGuntime1(Integer guntime1) {
-        this.guntime1 = guntime1;
+    public void setTimegun1(Integer guntime1) {
+        this.timegun1 = guntime1;
     }
 
-    public Integer getGuntime2() {
-        return guntime2;
+    public Integer getTimegun2() {
+        return timegun2;
     }
 
-    public void setGuntime2(Integer guntime2) {
-        this.guntime2 = guntime2;
+    public void setTimegun2(Integer guntime2) {
+        this.timegun2 = guntime2;
     }
 
-    public Integer getGuntime3() {
-        return guntime3;
+    public Integer getTimegun3() {
+        return timegun3;
     }
 
-    public void setGuntime3(Integer guntime3) {
-        this.guntime3 = guntime3;
+    public void setTimegun3(Integer guntime3) {
+        this.timegun3 = guntime3;
     }
 
-    public Integer getGuntime4() {
-        return guntime4;
+    public Integer getTimegun4() {
+        return timegun4;
     }
 
-    public void setGuntime4(Integer guntime4) {
-        this.guntime4 = guntime4;
+    public void setTimegun4(Integer guntime4) {
+        this.timegun4 = guntime4;
     }
 
-    public Integer getGuntime5() {
-        return guntime5;
+    public Integer getTimegun5() {
+        return timegun5;
     }
 
-    public void setGuntime5(Integer guntime5) {
-        this.guntime5 = guntime5;
+    public void setTimegun5(Integer guntime5) {
+        this.timegun5 = guntime5;
     }
 
-    public Integer getGuntime6() {
-        return guntime6;
+    public Integer getTimegun6() {
+        return timegun6;
     }
 
-    public void setGuntime6(Integer guntime6) {
-        this.guntime6 = guntime6;
+    public void setTimegun6(Integer guntime6) {
+        this.timegun6 = guntime6;
     }
 }

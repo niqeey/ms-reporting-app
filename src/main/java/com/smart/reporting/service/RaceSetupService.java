@@ -42,33 +42,33 @@ public class RaceSetupService {
         cat.setDistance(req.getDistance());
         cat.setRace(req.getRace());
         cat.setGender(req.getGender());
-        cat.setGuntime(req.getGuntime());
-        cat.setGuntime1(req.getGuntime1());
-        cat.setGuntime2(req.getGuntime2());
-        cat.setGuntime3(req.getGuntime3());
-        cat.setGuntime4(req.getGuntime4());
-        cat.setGuntime5(req.getGuntime5());
-        cat.setGuntime6(req.getGuntime6());
+        cat.setTimegun(req.getTimegun());
+        cat.setTimegun1(req.getTimegun1());
+        cat.setTimegun2(req.getTimegun2());
+        cat.setTimegun3(req.getTimegun3());
+        cat.setTimegun4(req.getTimegun4());
+        cat.setTimegun5(req.getTimegun5());
+        cat.setTimegun6(req.getTimegun6());
         return cat;
     }
 
     // Helper: Entity to DTO
     private RaceCategoryResponse toResponse(TEventCat cat) {
         RaceCategoryResponse resp = new RaceCategoryResponse();
-        resp.setId(cat.getId());
+        resp.setCatId(cat.getCatId());
         resp.setEventId(cat.getEventId());
         resp.setCat(cat.getCat());
         resp.setCategory(cat.getCategory());
         resp.setDistance(cat.getDistance());
         resp.setRace(cat.getRace());
         resp.setGender(cat.getGender());
-        resp.setGuntime(cat.getGuntime());
-        resp.setGuntime1(cat.getGuntime1());
-        resp.setGuntime2(cat.getGuntime2());
-        resp.setGuntime3(cat.getGuntime3());
-        resp.setGuntime4(cat.getGuntime4());
-        resp.setGuntime5(cat.getGuntime5());
-        resp.setGuntime6(cat.getGuntime6());
+        resp.setTimegun(cat.getTimegun());
+        resp.setTimegun1(cat.getTimegun1());
+        resp.setTimegun2(cat.getTimegun2());
+        resp.setTimegun3(cat.getTimegun3());
+        resp.setTimegun4(cat.getTimegun4());
+        resp.setTimegun5(cat.getTimegun5());
+        resp.setTimegun6(cat.getTimegun6());
         return resp;
     }
 }
