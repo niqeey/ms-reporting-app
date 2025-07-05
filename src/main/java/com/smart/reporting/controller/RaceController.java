@@ -27,7 +27,7 @@ public class RaceController {
     }
 
     // Create a new race category
-    @PostMapping("/category")
+    @PostMapping("/category/create")
     public ResponseEntity<RaceCategoryResponse> createCategory(@RequestBody RaceCategoryRequest req) {
         RaceCategoryResponse resp = raceService.createCategory(req);
         return ResponseEntity.ok(resp);

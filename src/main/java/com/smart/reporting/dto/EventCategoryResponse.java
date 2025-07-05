@@ -1,20 +1,107 @@
 package com.smart.reporting.dto;
 
+import java.math.BigDecimal;
+
 public class EventCategoryResponse {
     private String eventId;
     private String eventName;
     private Long catId;
     private String cat;
     private String name;
+    private BigDecimal distance;
+    private String gender;
+    private String checkpointlist;
+    private String raceMode;
+    private int toplist;
+    private int islive;
+
+
+    public BigDecimal getDistance() {
+        return distance;
+    }
+
+    public void setDistance(BigDecimal distance) {
+        this.distance = distance;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getCheckpointlist() {
+        return checkpointlist;
+    }
+
+    public void setCheckpointlist(String checkpointlist) {
+        this.checkpointlist = checkpointlist;
+    }
+
+    public String getRaceMode() {
+        return raceMode;
+    }
+
+    public void setRaceMode(String raceMode) {
+        this.raceMode = raceMode;
+    }
+
+    public int getToplist() {
+        return toplist;
+    }
+
+    public void setToplist(int toplist) {
+        this.toplist = toplist;
+    }
+
+    public int getIslive() {
+        return islive;
+    }
+
+    public void setIslive(int islive) {
+        this.islive = islive;
+    }
+    private int isresult;
+
+
+    public int getIsresult() {
+        return isresult;
+    }
+
+    public void setIsresult(int isresult) {
+        this.isresult = isresult;
+    }
 
     public EventCategoryResponse() {}
 
-    public EventCategoryResponse(String eventId, String eventName, Long catId, String cat, String name) {
+    public EventCategoryResponse(
+        String eventId, 
+        String eventName, 
+        Long catId, 
+        String cat, 
+        String name,
+        BigDecimal distance,
+        String gender,
+        String checkpointlist,
+        String raceMode,
+        int toplist,
+        int islive,
+        int isresult
+    ) {
         this.eventId = eventId;
         this.eventName = eventName;
         this.catId = catId;
         this.cat = cat;
         this.name = name;
+        this.distance = distance;
+        this.gender = gender;
+        this.checkpointlist = checkpointlist;
+        this.raceMode = raceMode;
+        this.toplist = toplist;
+        this.islive = islive;
+        this.isresult = isresult;
     }
 
     public String getEventId() {

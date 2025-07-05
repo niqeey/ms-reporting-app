@@ -3,9 +3,10 @@ package com.smart.reporting.dto;
 import java.math.BigDecimal;
 
 public class RaceCategoryRequest {
+    private Integer catId;
     private String eventId;
     private String cat;
-    private String category;
+    private String category;//name
     private BigDecimal distance;
     private String race;
     private String gender;
@@ -16,6 +17,20 @@ public class RaceCategoryRequest {
     private Integer timegun4;
     private Integer timegun5;
     private Integer timegun6;
+    private String checkpointlist;
+    private String raceMode;
+    private int toplist;
+    private int islive;
+
+    
+
+    public Integer getCatId() {
+        return catId;
+    }
+
+    public void setCatId(Integer catId) {
+        this.catId = catId;
+    }
 
     public String getEventId() {
         return eventId;
@@ -117,7 +132,38 @@ public class RaceCategoryRequest {
         return timegun6;
     }
 
-    public void setTimegun6(Integer timegun6) {
-        this.timegun6 = timegun6;
+    public void setTimegun6(Integer guntime6) {
+        this.timegun6 = guntime6;
+    }
+    public String getCheckpointlist() {
+        return checkpointlist;
+    }
+
+    public void setCheckpointlist(String checkpointlist) {
+        this.checkpointlist = checkpointlist;
+    }
+
+    public String getRaceMode() {
+        return raceMode;
+    }
+
+    public void setRaceMode(String raceMode) {
+        this.raceMode = raceMode;
+    }
+
+    public int getToplist() {
+        return toplist;
+    }
+
+    public void setToplist(int toplist) {
+        this.toplist = toplist;
+    }
+
+    public int getIslive() {
+        return islive;
+    }
+
+    public void setIslive(int islive) {
+        this.islive = islive;
     }
 }

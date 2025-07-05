@@ -36,7 +36,14 @@ public class RaceService {
                         event != null ? event.getName() : null,
                         cat.getCatId() != null ? cat.getCatId().longValue() : null,
                         cat.getCat(),
-                        cat.getCategory()
+                        cat.getCategory(),
+                        cat.getDistance(),
+                        cat.getGender(),
+                        cat.getCplist(),
+                        cat.getRacemode(),
+                        cat.getTop() != null ? cat.getTop() : 0,
+                        cat.getIsLive() != null ? cat.getIsLive() : 0,
+                        cat.getIsResult() != null ? cat.getIsResult() : 0
                 ))
                 .collect(Collectors.toList());
     }
