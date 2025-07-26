@@ -11,6 +11,13 @@ public class StatisticReportDto {
     private Integer didNotFinish;
     private Integer falseStart;
     private Integer noStartButFinished;
+    private Integer disqualified;
+    private Integer distance;
+
+
+
+
+
     public StatisticReportDto() {
         
     }
@@ -93,5 +100,17 @@ public class StatisticReportDto {
 
     public void setNoStartButFinished(Integer noStartButFinished) {
         this.noStartButFinished = noStartButFinished;
+    }
+    public Integer getDistance() {
+        return distance;
+    }
+    public void setDistance(Integer distance) {
+        this.distance = distance;
+    }
+    public Integer getDisqualified() {
+        return disqualified;
+    }
+    public void setDisqualified(Integer disqualified) {
+        this.disqualified = disqualified;
     }
 }

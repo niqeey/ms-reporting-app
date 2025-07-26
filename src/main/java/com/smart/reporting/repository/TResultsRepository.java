@@ -12,4 +12,5 @@ public interface TResultsRepository extends JpaRepository<TResults, Integer> {
     List<TResults> findByEventIdAndCat(String eventId, String cat, Pageable pageable);
     List<TResults> findByEventIdAndCatAndRank1catGreaterThanOrderByRank1cat(String eventId, String cat, int rank1cat);
     List<TResults> findByEventIdAndCatAndRank1catGreaterThanOrderByRank1cat(String eventId, String cat, int rank1cat, Pageable pageable);
+    List<TResults> findByEventIdAndBib(String eventId,String bib);
 }

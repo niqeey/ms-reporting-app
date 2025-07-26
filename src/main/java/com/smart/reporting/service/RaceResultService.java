@@ -51,5 +51,13 @@ public class RaceResultService {
         
         return tResultsRepository.findByEventIdAndCatAndRank1catGreaterThanOrderByRank1cat(eventId, cat, 0, PageRequest.of(0, limit));
     }
+
+    public List<TResults> getParticipantDetails(String eventId,String bib) {
+        return tResultsRepository.findByEventIdAndBib(eventId,bib);
+    }
+    public List<TResults> getResultsByBib(String eventId,String bib) {
+        return tResultsRepository.findByEventIdAndBib(eventId,bib);
+    }
+    
     
 }

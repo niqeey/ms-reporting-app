@@ -173,10 +173,7 @@ public class ReportController {
             catFont.setFontHeightInPoints((short) 11);
             catFont.setFontName("Aptos Narrow");
             catFont.setBold(true);
-            catStyle.setFont(catFont);
-            
-
-            
+            catStyle.setFont(catFont); 
             
             
             int rowIdx = 0;
