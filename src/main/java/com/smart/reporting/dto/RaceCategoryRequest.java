@@ -21,6 +21,7 @@ public class RaceCategoryRequest {
     private String raceMode;
     private int toplist;
     private int islive;
+    private int isresult;
 
     
 
@@ -165,5 +166,13 @@ public class RaceCategoryRequest {
 
     public void setIslive(int islive) {
         this.islive = islive;
+    }
+
+    public int getIsresult() {
+        return isresult;
+    }
+
+    public void setIsresult(int isresult) {
+        this.isresult = isresult;
     }
 }

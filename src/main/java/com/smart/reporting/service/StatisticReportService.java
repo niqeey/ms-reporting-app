@@ -40,14 +40,14 @@ public class StatisticReportService {
             dto.setStatistic((String) row[0]);
             dto.setCat((String) row[1]);
             dto.setCategory((String) row[2]);
-            dto.setRegistered(((Number) row[3]).intValue());
-            dto.setStarted(((Number) row[4]).intValue());
-            dto.setDidNotStart(((Number) row[5]).intValue());
-            dto.setFinished(((Number) row[6]).intValue());
-            dto.setDidNotFinish(((Number) row[7]).intValue());
-            dto.setFalseStart(((Number) row[8]).intValue());
-            dto.setNoStartButFinished(((Number) row[9]).intValue());
-            dto.setDisqualified(((Number) row[10]).intValue());
+            dto.setRegistered(row[3] != null ? ((Number) row[3]).intValue() : 0);
+            dto.setStarted(row[4] != null ? ((Number) row[4]).intValue() : 0);
+            dto.setDidNotStart(row[5] != null ? ((Number) row[5]).intValue() : 0);
+            dto.setFinished(row[6] != null ? ((Number) row[6]).intValue() : 0);
+            dto.setDidNotFinish(row[7] != null ? ((Number) row[7]).intValue() : 0);
+            dto.setFalseStart(row[8] != null ? ((Number) row[8]).intValue() : 0);
+            dto.setNoStartButFinished(row[9] != null ? ((Number) row[9]).intValue() : 0);
+            dto.setDisqualified(row[10] != null ? ((Number) row[10]).intValue() : 0);
             if (row.length > 10 && row[11] != null) {
                 dto.setDistance(((Number) row[11]).intValue());
             } else {

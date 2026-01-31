@@ -1,5 +1,6 @@
 package com.smart.reporting.controller;
 
+import com.smart.reporting.dto.CsvUploadResponse;
 import com.smart.reporting.dto.EventCategoryRequest;
 import com.smart.reporting.dto.EventCategoryResponse;
 import com.smart.reporting.dto.RaceCategoryRequest;
@@ -8,6 +9,7 @@ import com.smart.reporting.service.RaceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -33,10 +35,32 @@ public class RaceController {
         return ResponseEntity.ok(resp);
     }
 
+    // Update a race category
+    @PostMapping("/category/update")
+    public ResponseEntity<RaceCategoryResponse> updateCategory(@RequestBody RaceCategoryRequest req) {
+        RaceCategoryResponse resp = raceService.updateCategory(req);
+        return ResponseEntity.ok(resp);
+    }
+
     // Delete a race category by id
     @DeleteMapping("/category")
     public ResponseEntity<?> deleteCategory(@RequestParam Long id) {
         raceService.deleteCategory(id);
         return ResponseEntity.ok("Category deleted successfully.");
+    }
+    
+    // Upload CSV for participants
+    @PostMapping("/category/upload-csv")
+    public ResponseEntity<CsvUploadResponse> uploadCsv(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("eventId") String eventId,
+            @RequestParam("cat") String cat) {
+        try {
+            CsvUploadResponse response = raceService.uploadParticipantsCsv(file, eventId, cat);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            CsvUploadResponse errorResponse = new CsvUploadResponse(0, 0, 0, "Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
 }

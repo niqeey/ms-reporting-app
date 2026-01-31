@@ -2,6 +2,7 @@ package com.smart.reporting.repository;
 
 import com.smart.reporting.entity.TEventCat;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -13,4 +14,7 @@ public interface TEventCatRepository extends JpaRepository<TEventCat, Long> {
     List<TEventCat> findByEventIdAndIsResult(String eventId, int isResult);
     List<TEventCat> findByEventIdAndIsResultAndCat(String eventId, int isResult, String b);
     List<TEventCat> findByEventIdAndCat(String eventId, String v);
+    
+    @Query("SELECT COALESCE(MAX(e.catId), 0) FROM TEventCat e")
+    Integer findMaxCatId();
 }
