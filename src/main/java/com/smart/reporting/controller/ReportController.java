@@ -2,6 +2,8 @@ package com.smart.reporting.controller;
 
 import com.smart.reporting.dto.EventCategoryResultRequest;
 import com.smart.reporting.dto.EventCategoryResultResponse;
+import com.smart.reporting.dto.OverallRankRequest;
+import com.smart.reporting.dto.GenderRankRequest;
 import com.smart.reporting.entity.TEvent;
 import com.smart.reporting.entity.TEventCat;
 import com.smart.reporting.entity.TOrg;
@@ -11,6 +13,7 @@ import com.smart.reporting.service.EventService;
 import com.smart.reporting.service.OrgService;
 import com.smart.reporting.service.RaceResultService;
 import com.smart.reporting.service.ReportExportService;
+import com.smart.reporting.service.StatisticReportService;
 import com.smart.reporting.util.TimeFormatUtil;
 
 import org.apache.poi.ss.usermodel.*;
@@ -46,6 +49,97 @@ public class ReportController {
 
     @Autowired
     private ReportExportService reportExportService;
+
+    @Autowired
+    private StatisticReportService statisticReportService;
+
+    @PostMapping("/event/calculate-ranks")
+    public ResponseEntity<String> calculateRanks(
+        @RequestHeader("OrgId") String orgId,
+        @RequestBody EventCategoryResultRequest request) {
+        try {
+            statisticReportService.calculateRanks(request.getEventId());
+            return ResponseEntity.ok("Ranks calculated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to calculate ranks: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/event/overall-rank")
+    public List<EventCategoryResultResponse> getOverallRank(@RequestBody OverallRankRequest request) {
+        List<TResults> results = raceResultService.getResultsByEventAndDistanceOrderByRank1tot(request.getEventId(), request.getDistance());
+        List<EventCategoryResultResponse> responseList = results.stream().map(result -> {
+            EventCategoryResultResponse dto = new EventCategoryResultResponse();
+            dto.setName(result.getName());
+            dto.setBib(result.getBib());
+            dto.setCategory(result.getCategory());
+            dto.setEventId(result.getEventId());
+            dto.setCat(result.getCat());
+            dto.setRank1Cat(result.getRank1cat());
+            dto.setRank1Mix(result.getRank1mix());
+            dto.setRank1Tot(result.getRank1tot());
+            dto.setNetTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()));
+            dto.setOfficialTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()));
+            dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
+            dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
+            dto.setTimeGun(TimeFormatUtil.intToTimeString(result.getTimegun()));
+            dto.setTimeCP1(TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()));
+            dto.setTimeCP2(TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()));
+            dto.setTimeCP3(TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()));
+            dto.setTimeCP4(TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()));
+            dto.setTimeCP5(TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()));
+            dto.setTimeCP6(TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()));
+            dto.setTimeCP7(TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()));
+            dto.setTimeCP8(TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()));
+            dto.setTimeCP9(TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()));
+            dto.setTimeCP10(TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()));
+            return dto;
+        }).collect(Collectors.toList());
+        return responseList;
+    }
+
+    @PostMapping("/event/gender-rank")
+    public List<EventCategoryResultResponse> getGenderRank(@RequestBody GenderRankRequest request) {
+        System.out.println("DEBUG: EventId=" + request.getEventId() + ", Distance=" + request.getDistance() + ", Gender=" + request.getGender());
+        List<EventCategoryResultResponse> results = statisticReportService.getGenderRankResults(
+            request.getEventId(), request.getDistance(), request.getGender());
+        System.out.println("DEBUG: Results count=" + results.size());
+        return results;
+    }
+
+    @PostMapping("/event/overall-rank/xlsx")
+    public ResponseEntity<byte[]> downloadOverallRankAsXlsx(
+        @RequestHeader("OrgId") String orgId,
+        @RequestBody OverallRankRequest request) throws Exception {
+        byte[] excelBytes = reportExportService.generateOverallRankExcel(
+            request.getEventId(), request.getDistance(), orgId);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", 
+            "overall_rank_" + request.getDistance() + ".xlsx");
+        
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(excelBytes);
+    }
+
+    @PostMapping("/event/gender-rank/xlsx")
+    public ResponseEntity<byte[]> downloadGenderRankAsXlsx(
+        @RequestHeader("OrgId") String orgId,
+        @RequestBody GenderRankRequest request) throws Exception {
+        byte[] excelBytes = reportExportService.generateGenderRankExcel(
+            request.getEventId(), request.getDistance(), request.getGender(), orgId);
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", 
+            "gender_rank_" + request.getDistance() + "_" + request.getGender() + ".xlsx");
+        
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(excelBytes);
+    }
 
     @PostMapping("/event/category/top")
     public List<EventCategoryResultResponse> getTopResultsByEventAndCategory(@RequestBody EventCategoryResultRequest request) {
@@ -410,5 +504,77 @@ public class ReportController {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(bytes);
+    }
+
+    @PostMapping("/event/statistic/xlsx")
+    public ResponseEntity<byte[]> downloadStatisticAsXlsx(@RequestBody EventCategoryResultRequest request) throws Exception {
+        byte[] bytes = reportExportService.exportStatisticToExcel(request.getEventId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=statistic.xlsx");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/event/registered/xlsx")
+    public ResponseEntity<byte[]> downloadRegisteredAsXlsx(@RequestBody EventCategoryResultRequest request) throws Exception {
+        byte[] bytes = reportExportService.exportRegisteredToExcel(request.getEventId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=registered.xlsx");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/event/started/xlsx")
+    public ResponseEntity<byte[]> downloadStartedAsXlsx(@RequestBody EventCategoryResultRequest request) throws Exception {
+        byte[] bytes = reportExportService.exportStartedToExcel(request.getEventId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=started.xlsx");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/event/dns/xlsx")
+    public ResponseEntity<byte[]> downloadDnsAsXlsx(@RequestBody EventCategoryResultRequest request) throws Exception {
+        byte[] bytes = reportExportService.exportDnsToExcel(request.getEventId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=did_not_start.xlsx");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/event/finished/xlsx")
+    public ResponseEntity<byte[]> downloadFinishedAsXlsx(@RequestBody EventCategoryResultRequest request) throws Exception {
+        byte[] bytes = reportExportService.exportFinishedToExcel(request.getEventId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=finished.xlsx");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/event/dnf/xlsx")
+    public ResponseEntity<byte[]> downloadDnfAsXlsx(@RequestBody EventCategoryResultRequest request) throws Exception {
+        byte[] bytes = reportExportService.exportDnfToExcel(request.getEventId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=did_not_finish.xlsx");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/event/nsbf/xlsx")
+    public ResponseEntity<byte[]> downloadNsbfAsXlsx(@RequestBody EventCategoryResultRequest request) throws Exception {
+        byte[] bytes = reportExportService.exportNsbfToExcel(request.getEventId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=no_start_but_finished.xlsx");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    @PostMapping("/event/dq/xlsx")
+    public ResponseEntity<byte[]> downloadDqAsXlsx(@RequestBody EventCategoryResultRequest request) throws Exception {
+        byte[] bytes = reportExportService.exportDqToExcel(request.getEventId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=disqualified.xlsx");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok().headers(headers).body(bytes);
     }
 }

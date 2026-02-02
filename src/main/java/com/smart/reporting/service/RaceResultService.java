@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import com.smart.reporting.service.EventCatService;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -57,6 +58,16 @@ public class RaceResultService {
     }
     public List<TResults> getResultsByBib(String eventId,String bib) {
         return tResultsRepository.findByEventIdAndBib(eventId,bib);
+    }
+    
+    // Get results for Overall Rank (RANK1TOT)
+    public List<TResults> getResultsByEventAndDistanceOrderByRank1tot(String eventId, String distance) {
+        return tResultsRepository.findByEventIdAndDistanceAndRank1totGreaterThanOrderByRank1totAsc(eventId, new BigDecimal(distance), 0);
+    }
+    
+    // Get results for Gender Rank (RANK1MIX)
+    public List<TResults> getResultsByEventAndDistanceAndGenderOrderByRank1mix(String eventId, String distance, String gender) {
+        return tResultsRepository.findByEventIdAndDistanceAndSexAndRank1mixGreaterThanOrderByRank1mixAsc(eventId, new BigDecimal(distance), gender, 0);
     }
     
     

@@ -1,15 +1,13 @@
 package com.smart.reporting.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.math.BigDecimal;
 
-@Getter
-@Setter
 @Entity
 @Table(name = "t_event_cat")
+@Data
 public class TEventCat {
 
     @Id
@@ -75,5 +73,4 @@ public class TEventCat {
 
     @Column(name = "is_result")
     private Integer isResult;
-
 }

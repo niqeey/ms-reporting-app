@@ -156,15 +156,8 @@ public class RaceService {
         
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
             String line;
-            boolean isFirstLine = true;
             
             while ((line = reader.readLine()) != null) {
-                // Skip header row
-                if (isFirstLine) {
-                    isFirstLine = false;
-                    continue;
-                }
-                
                 String[] columns = line.split(",");
                 if (columns.length < 4) {
                     continue; // Skip invalid rows
@@ -172,13 +165,15 @@ public class RaceService {
                 
                 totalRows++;
                 
-                // CSV format: pid, chipcode, bib, name, sex (optional)
+                // CSV format: pid, chipcode, bib, name, sex, country, nric (last 3 are optional)
                 // Remove quotes and trim
                 String csvPid = columns[0].trim().replace("\"", "");
                 String chipCode = columns[1].trim().replace("\"", "");
                 String bib = columns[2].trim().replace("\"", "");
-                String name = columns[3].trim().replace("\"", "");
+                String name = columns[3].trim().replace("\"", "").toUpperCase(); // Trim and uppercase name
                 String sex = columns.length > 4 ? columns[4].trim().replace("\"", "") : null; // Optional sex field
+                String country = columns.length > 5 ? columns[5].trim().replace("\"", "") : null; // Optional country field
+                String nric = columns.length > 6 ? columns[6].trim().replace("\"", "") : null; // Optional NRIC field
                 
                 // Check if this is a deletion request (pid = 0)
                 boolean isDeletion = "0".equals(csvPid);
@@ -224,6 +219,12 @@ public class RaceService {
                         if (sex != null && !sex.isEmpty()) {
                             existing.setSex(sex);
                         }
+                        if (country != null && !country.isEmpty()) {
+                            existing.setCountry(country);
+                        }
+                        if (nric != null && !nric.isEmpty()) {
+                            existing.setNric(nric);
+                        }
                         tResultsRepository.save(existing);
                         updated++;
                     }
@@ -264,6 +265,12 @@ public class RaceService {
                         newResult.setTimecp10(0);
                         if (sex != null && !sex.isEmpty()) {
                             newResult.setSex(sex);
+                        }
+                        if (country != null && !country.isEmpty()) {
+                            newResult.setCountry(country);
+                        }
+                        if (nric != null && !nric.isEmpty()) {
+                            newResult.setNric(nric);
                         }
                         newResult.setChipCode(chipCode);
                         newResult.setBib(bib);

@@ -1,13 +1,11 @@
 package com.smart.reporting.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.util.Date;
 
-@Getter
-@Setter
+@Data
 @Entity
 @Table(name = "t_event")
 public class TEvent {
@@ -43,5 +41,4 @@ public class TEvent {
         this.country = country;
         this.weather = weather;
     }
-
 }

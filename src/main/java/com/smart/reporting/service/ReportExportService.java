@@ -1,12 +1,16 @@
 package com.smart.reporting.service;
 
+import com.smart.reporting.dto.*;
 import com.smart.reporting.entity.TEvent;
 import com.smart.reporting.entity.TEventCat;
 import com.smart.reporting.entity.TOrg;
 import com.smart.reporting.entity.TResults;
+import com.smart.reporting.repository.TEventRepository;
+import com.smart.reporting.repository.TOrgRepository;
 import com.smart.reporting.util.TimeFormatUtil;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +24,15 @@ import java.util.Optional;
 
 @Service
 public class ReportExportService {
+
+    @Autowired
+    private StatisticReportService statisticReportService;
+
+    @Autowired
+    private TEventRepository eventRepository;
+
+    @Autowired
+    private TOrgRepository orgRepository;
 
     public byte[] generateResultsXlsx(
             List<TResults> results,
@@ -241,6 +254,841 @@ public class ReportExportService {
                 sheet.setColumnWidth(i, 100 * 36);
             }
 
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    public byte[] exportStatisticToExcel(String eventId) throws Exception {
+        List<StatisticReportDto> data = statisticReportService.getStatisticReport(new com.smart.reporting.dto.EventRequest(eventId));
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        TOrg org = orgRepository.findByIsActive(true).stream().findFirst().orElse(null);
+        return generateStatisticExcel(data, "Statistics", event, org);
+    }
+
+    public byte[] exportRegisteredToExcel(String eventId) throws Exception {
+        List<StatisticRegListDto> data = statisticReportService.getRegistrationList(eventId);
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        TOrg org = orgRepository.findByIsActive(true).stream().findFirst().orElse(null);
+        return generateListExcel(data, "Registered", new String[]{"Item", "Category", "Bib", "Name"}, event, org, "Registration List");
+    }
+
+    public byte[] exportStartedToExcel(String eventId) throws Exception {
+        List<StatisticStartListDto> data = statisticReportService.getStartList(eventId);
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        TOrg org = orgRepository.findByIsActive(true).stream().findFirst().orElse(null);
+        return generateStartListExcel(data, "Started", event, org);
+    }
+
+    public byte[] exportDnsToExcel(String eventId) throws Exception {
+        List<StatisticDnsDto> data = statisticReportService.getDidNotStartList(eventId);
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        TOrg org = orgRepository.findByIsActive(true).stream().findFirst().orElse(null);
+        return generateListExcel(data, "Did Not Start", new String[]{"Item", "Category", "Bib", "Name"}, event, org, "Did Not Start List");
+    }
+
+    public byte[] exportFinishedToExcel(String eventId) throws Exception {
+        List<StatisticFinishedDto> data = statisticReportService.getFinishedList(eventId);
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        TOrg org = orgRepository.findByIsActive(true).stream().findFirst().orElse(null);
+        return generateFinishedListExcel(data, "Finished", event, org);
+    }
+
+    public byte[] exportDnfToExcel(String eventId) throws Exception {
+        List<StatisticDnfDto> data = statisticReportService.getDidNotFinishList(eventId);
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        TOrg org = orgRepository.findByIsActive(true).stream().findFirst().orElse(null);
+        return generateDnfListExcel(data, "Did Not Finish", event, org);
+    }
+
+    public byte[] exportNsbfToExcel(String eventId) throws Exception {
+        List<StatisticNsbfDto> data = statisticReportService.getNoStartButFinishedList(eventId);
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        TOrg org = orgRepository.findByIsActive(true).stream().findFirst().orElse(null);
+        return generateFinishedListExcel(data, "No Start But Finished", event, org);
+    }
+
+    public byte[] exportDqToExcel(String eventId) throws Exception {
+        List<StatisticDqDto> data = statisticReportService.getDisqualifiedList(eventId);
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        TOrg org = orgRepository.findByIsActive(true).stream().findFirst().orElse(null);
+        return generateDqListExcel(data, "Disqualified", event, org);
+    }
+
+    private byte[] generateStatisticExcel(List<StatisticReportDto> data, String sheetName, TEvent event, TOrg org) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet(sheetName);
+            int rowIdx = 0;
+
+            // Styles
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle fieldStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+
+            // Header rows
+            if (event != null) {
+                rowIdx = addEventHeader(sheet, event, org, "Statistics Report", rowIdx, r1Style, headingStyle);
+                rowIdx++; // Empty row
+            }
+
+            // Field headers
+            Row headerRow = sheet.createRow(rowIdx++);
+            String[] headers = {"Cat", "Category", "Registered", "Started", "Did Not Start", "Finished", "Did Not Finish", "False Start", "No Start But Finished", "Disqualified"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(fieldStyle);
+            }
+
+            // Data row styles
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+
+            // Data rows
+            for (StatisticReportDto dto : data) {
+                Row row = sheet.createRow(rowIdx++);
+                CellStyle rowStyle = (rowIdx % 2 == 0) ? dataStyleAlt : dataStyleDefault;
+                
+                Cell c0 = row.createCell(0);
+                c0.setCellValue(dto.getCat());
+                c0.setCellStyle(rowStyle);
+                
+                Cell c1 = row.createCell(1);
+                c1.setCellValue(dto.getCategory());
+                c1.setCellStyle(rowStyle);
+                
+                Cell c2 = row.createCell(2);
+                c2.setCellValue(dto.getRegistered());
+                c2.setCellStyle(rowStyle);
+                
+                Cell c3 = row.createCell(3);
+                c3.setCellValue(dto.getStarted());
+                c3.setCellStyle(rowStyle);
+                
+                Cell c4 = row.createCell(4);
+                c4.setCellValue(dto.getDidNotStart());
+                c4.setCellStyle(rowStyle);
+                
+                Cell c5 = row.createCell(5);
+                c5.setCellValue(dto.getFinished());
+                c5.setCellStyle(rowStyle);
+                
+                Cell c6 = row.createCell(6);
+                c6.setCellValue(dto.getDidNotFinish());
+                c6.setCellStyle(rowStyle);
+                
+                Cell c7 = row.createCell(7);
+                c7.setCellValue(dto.getFalseStart());
+                c7.setCellStyle(rowStyle);
+                
+                Cell c8 = row.createCell(8);
+                c8.setCellValue(dto.getNoStartButFinished());
+                c8.setCellStyle(rowStyle);
+                
+                Cell c9 = row.createCell(9);
+                c9.setCellValue(dto.getDisqualified());
+                c9.setCellStyle(rowStyle);
+            }
+
+            // Footer
+            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
+
+            // Column widths
+            sheet.setColumnWidth(0, 50 * 36);
+            sheet.setColumnWidth(1, 250 * 36);
+            for (int i = 2; i < headers.length; i++) {
+                sheet.setColumnWidth(i, 100 * 36);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private byte[] generateListExcel(List<?> data, String sheetName, String[] headers, TEvent event, TOrg org, String title) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet(sheetName);
+            int rowIdx = 0;
+
+            // Styles
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle fieldStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+
+            // Header rows
+            if (event != null) {
+                rowIdx = addEventHeader(sheet, event, org, title, rowIdx, r1Style, headingStyle);
+                rowIdx++; // Empty row
+            }
+
+            // Field headers
+            Row headerRow = sheet.createRow(rowIdx++);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(fieldStyle);
+            }
+
+            // Data row styles
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+
+            // Data rows
+            for (Object obj : data) {
+                Row row = sheet.createRow(rowIdx++);
+                CellStyle rowStyle = (rowIdx % 2 == 0) ? dataStyleAlt : dataStyleDefault;
+                
+                if (obj instanceof StatisticRegListDto) {
+                    StatisticRegListDto dto = (StatisticRegListDto) obj;
+                    Cell c0 = row.createCell(0);
+                    c0.setCellValue(dto.getItem());
+                    c0.setCellStyle(rowStyle);
+                    
+                    Cell c1 = row.createCell(1);
+                    c1.setCellValue(dto.getCategory());
+                    c1.setCellStyle(rowStyle);
+                    
+                    Cell c2 = row.createCell(2);
+                    c2.setCellValue(dto.getBib());
+                    c2.setCellStyle(rowStyle);
+                    
+                    Cell c3 = row.createCell(3);
+                    c3.setCellValue(dto.getName());
+                    c3.setCellStyle(rowStyle);
+                } else if (obj instanceof StatisticDnsDto) {
+                    StatisticDnsDto dto = (StatisticDnsDto) obj;
+                    Cell c0 = row.createCell(0);
+                    c0.setCellValue(dto.getItem());
+                    c0.setCellStyle(rowStyle);
+                    
+                    Cell c1 = row.createCell(1);
+                    c1.setCellValue(dto.getCategory());
+                    c1.setCellStyle(rowStyle);
+                    
+                    Cell c2 = row.createCell(2);
+                    c2.setCellValue(dto.getBib());
+                    c2.setCellStyle(rowStyle);
+                    
+                    Cell c3 = row.createCell(3);
+                    c3.setCellValue(dto.getName());
+                    c3.setCellStyle(rowStyle);
+                }
+            }
+
+            // Footer
+            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
+
+            // Column widths
+            sheet.setColumnWidth(0, 50 * 36);
+            sheet.setColumnWidth(1, 150 * 36);
+            sheet.setColumnWidth(2, 80 * 36);
+            sheet.setColumnWidth(3, 250 * 36);
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private byte[] generateStartListExcel(List<StatisticStartListDto> data, String sheetName, TEvent event, TOrg org) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet(sheetName);
+            int rowIdx = 0;
+
+            // Styles
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle fieldStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+
+            // Header rows
+            if (event != null) {
+                rowIdx = addEventHeader(sheet, event, org, "Start List", rowIdx, r1Style, headingStyle);
+                rowIdx++; // Empty row
+            }
+
+            // Field headers
+            Row headerRow = sheet.createRow(rowIdx++);
+            String[] headers = {"Item", "Category", "Bib", "Name", "Time Start", "Time Gun"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(fieldStyle);
+            }
+
+            // Data row styles
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+
+            // Data rows
+            for (StatisticStartListDto dto : data) {
+                Row row = sheet.createRow(rowIdx++);
+                CellStyle rowStyle = (rowIdx % 2 == 0) ? dataStyleAlt : dataStyleDefault;
+                
+                Cell c0 = row.createCell(0);
+                c0.setCellValue(dto.getItem());
+                c0.setCellStyle(rowStyle);
+                
+                Cell c1 = row.createCell(1);
+                c1.setCellValue(dto.getCategory());
+                c1.setCellStyle(rowStyle);
+                
+                Cell c2 = row.createCell(2);
+                c2.setCellValue(dto.getBib());
+                c2.setCellStyle(rowStyle);
+                
+                Cell c3 = row.createCell(3);
+                c3.setCellValue(dto.getName());
+                c3.setCellStyle(rowStyle);
+                
+                Cell c4 = row.createCell(4);
+                c4.setCellValue("'" + dto.getTimeStart());
+                c4.setCellStyle(rowStyle);
+                
+                Cell c5 = row.createCell(5);
+                c5.setCellValue("'" + dto.getTimeGun());
+                c5.setCellStyle(rowStyle);
+            }
+
+            // Footer
+            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
+
+            // Column widths
+            sheet.setColumnWidth(0, 50 * 36);
+            sheet.setColumnWidth(1, 150 * 36);
+            sheet.setColumnWidth(2, 80 * 36);
+            sheet.setColumnWidth(3, 250 * 36);
+            sheet.setColumnWidth(4, 100 * 36);
+            sheet.setColumnWidth(5, 100 * 36);
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private byte[] generateFinishedListExcel(List<?> data, String sheetName, TEvent event, TOrg org) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet(sheetName);
+            int rowIdx = 0;
+
+            // Styles
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle fieldStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+
+            // Header rows
+            if (event != null) {
+                String title = sheetName.equals("Finished") ? "Finished List" : "No Start But Finished List";
+                rowIdx = addEventHeader(sheet, event, org, title, rowIdx, r1Style, headingStyle);
+                rowIdx++; // Empty row
+            }
+
+            // Field headers
+            Row headerRow = sheet.createRow(rowIdx++);
+            String[] headers = {"Item", "Category", "Bib", "Name", "Time Finish", "Time Gun"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(fieldStyle);
+            }
+
+            // Data row styles
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+
+            // Data rows
+            for (Object obj : data) {
+                Row row = sheet.createRow(rowIdx++);
+                CellStyle rowStyle = (rowIdx % 2 == 0) ? dataStyleAlt : dataStyleDefault;
+                
+                if (obj instanceof StatisticFinishedDto) {
+                    StatisticFinishedDto dto = (StatisticFinishedDto) obj;
+                    Cell c0 = row.createCell(0);
+                    c0.setCellValue(dto.getItem());
+                    c0.setCellStyle(rowStyle);
+                    
+                    Cell c1 = row.createCell(1);
+                    c1.setCellValue(dto.getCategory());
+                    c1.setCellStyle(rowStyle);
+                    
+                    Cell c2 = row.createCell(2);
+                    c2.setCellValue(dto.getBib());
+                    c2.setCellStyle(rowStyle);
+                    
+                    Cell c3 = row.createCell(3);
+                    c3.setCellValue(dto.getName());
+                    c3.setCellStyle(rowStyle);
+                    
+                    Cell c4 = row.createCell(4);
+                    c4.setCellValue("'" + dto.getTimeFinish());
+                    c4.setCellStyle(rowStyle);
+                    
+                    Cell c5 = row.createCell(5);
+                    c5.setCellValue("'" + dto.getTimeGun());
+                    c5.setCellStyle(rowStyle);
+                } else if (obj instanceof StatisticNsbfDto) {
+                    StatisticNsbfDto dto = (StatisticNsbfDto) obj;
+                    Cell c0 = row.createCell(0);
+                    c0.setCellValue(dto.getItem());
+                    c0.setCellStyle(rowStyle);
+                    
+                    Cell c1 = row.createCell(1);
+                    c1.setCellValue(dto.getCategory());
+                    c1.setCellStyle(rowStyle);
+                    
+                    Cell c2 = row.createCell(2);
+                    c2.setCellValue(dto.getBib());
+                    c2.setCellStyle(rowStyle);
+                    
+                    Cell c3 = row.createCell(3);
+                    c3.setCellValue(dto.getName());
+                    c3.setCellStyle(rowStyle);
+                    
+                    Cell c4 = row.createCell(4);
+                    c4.setCellValue("'" + dto.getTimeFinish());
+                    c4.setCellStyle(rowStyle);
+                    
+                    Cell c5 = row.createCell(5);
+                    c5.setCellValue("'" + dto.getTimeGun());
+                    c5.setCellStyle(rowStyle);
+                }
+            }
+
+            // Footer
+            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
+
+            // Column widths
+            sheet.setColumnWidth(0, 50 * 36);
+            sheet.setColumnWidth(1, 150 * 36);
+            sheet.setColumnWidth(2, 80 * 36);
+            sheet.setColumnWidth(3, 250 * 36);
+            sheet.setColumnWidth(4, 100 * 36);
+            sheet.setColumnWidth(5, 100 * 36);
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private byte[] generateDnfListExcel(List<StatisticDnfDto> data, String sheetName, TEvent event, TOrg org) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet(sheetName);
+            int rowIdx = 0;
+
+            // Styles
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle fieldStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+
+            // Header rows
+            if (event != null) {
+                rowIdx = addEventHeader(sheet, event, org, "Did Not Finish List", rowIdx, r1Style, headingStyle);
+                rowIdx++; // Empty row
+            }
+
+            // Field headers
+            Row headerRow = sheet.createRow(rowIdx++);
+            String[] headers = {"Item", "Category", "Bib", "Name", "Time Start", "Time Gun"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(fieldStyle);
+            }
+
+            // Data row styles
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+
+            // Data rows
+            for (StatisticDnfDto dto : data) {
+                Row row = sheet.createRow(rowIdx++);
+                CellStyle rowStyle = (rowIdx % 2 == 0) ? dataStyleAlt : dataStyleDefault;
+                
+                Cell c0 = row.createCell(0);
+                c0.setCellValue(dto.getItem());
+                c0.setCellStyle(rowStyle);
+                
+                Cell c1 = row.createCell(1);
+                c1.setCellValue(dto.getCategory());
+                c1.setCellStyle(rowStyle);
+                
+                Cell c2 = row.createCell(2);
+                c2.setCellValue(dto.getBib());
+                c2.setCellStyle(rowStyle);
+                
+                Cell c3 = row.createCell(3);
+                c3.setCellValue(dto.getName());
+                c3.setCellStyle(rowStyle);
+                
+                Cell c4 = row.createCell(4);
+                c4.setCellValue("'" + dto.getTimeStart());
+                c4.setCellStyle(rowStyle);
+                
+                Cell c5 = row.createCell(5);
+                c5.setCellValue("'" + dto.getTimeGun());
+                c5.setCellStyle(rowStyle);
+            }
+
+            // Footer
+            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
+
+            // Column widths
+            sheet.setColumnWidth(0, 50 * 36);
+            sheet.setColumnWidth(1, 150 * 36);
+            sheet.setColumnWidth(2, 80 * 36);
+            sheet.setColumnWidth(3, 250 * 36);
+            sheet.setColumnWidth(4, 100 * 36);
+            sheet.setColumnWidth(5, 100 * 36);
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private byte[] generateDqListExcel(List<StatisticDqDto> data, String sheetName, TEvent event, TOrg org) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet(sheetName);
+            int rowIdx = 0;
+
+            // Styles
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle fieldStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+
+            // Header rows
+            if (event != null) {
+                rowIdx = addEventHeader(sheet, event, org, "Disqualified List", rowIdx, r1Style, headingStyle);
+                rowIdx++; // Empty row
+            }
+
+            // Field headers
+            Row headerRow = sheet.createRow(rowIdx++);
+            String[] headers = {"Item", "Category", "Bib", "Name", "Time Finish", "Time Gun", "Reason"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(fieldStyle);
+            }
+
+            // Data row styles
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+
+            // Data rows
+            for (StatisticDqDto dto : data) {
+                Row row = sheet.createRow(rowIdx++);
+                CellStyle rowStyle = (rowIdx % 2 == 0) ? dataStyleAlt : dataStyleDefault;
+                
+                Cell c0 = row.createCell(0);
+                c0.setCellValue(dto.getItem());
+                c0.setCellStyle(rowStyle);
+                
+                Cell c1 = row.createCell(1);
+                c1.setCellValue(dto.getCategory());
+                c1.setCellStyle(rowStyle);
+                
+                Cell c2 = row.createCell(2);
+                c2.setCellValue(dto.getBib());
+                c2.setCellStyle(rowStyle);
+                
+                Cell c3 = row.createCell(3);
+                c3.setCellValue(dto.getName());
+                c3.setCellStyle(rowStyle);
+                
+                Cell c4 = row.createCell(4);
+                c4.setCellValue("'" + dto.getTimeFinish());
+                c4.setCellStyle(rowStyle);
+                
+                Cell c5 = row.createCell(5);
+                c5.setCellValue("'" + dto.getTimeGun());
+                c5.setCellStyle(rowStyle);
+                
+                Cell c6 = row.createCell(6);
+                c6.setCellValue(dto.getRemark() != null ? dto.getRemark() : "");
+                c6.setCellStyle(rowStyle);
+            }
+
+            // Footer
+            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
+
+            // Column widths
+            sheet.setColumnWidth(0, 50 * 36);
+            sheet.setColumnWidth(1, 150 * 36);
+            sheet.setColumnWidth(2, 80 * 36);
+            sheet.setColumnWidth(3, 250 * 36);
+            sheet.setColumnWidth(4, 100 * 36);
+            sheet.setColumnWidth(5, 100 * 36);
+            sheet.setColumnWidth(6, 300 * 36);
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    // Helper methods for creating consistent styles and headers
+    private CellStyle createTitleStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 18);
+        font.setFontName("Aptos Narrow");
+        style.setFont(font);
+        return style;
+    }
+
+    private CellStyle createHeadingStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(false);
+        font.setFontHeightInPoints((short) 14);
+        font.setFontName("Aptos Narrow");
+        style.setFont(font);
+        return style;
+    }
+
+    private CellStyle createFieldHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.BLACK.getIndex());
+        font.setFontHeightInPoints((short) 11);
+        font.setFontName("Aptos Narrow");
+        style.setFont(font);
+        style.setFillForegroundColor(IndexedColors.GREY_40_PERCENT.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
+    }
+
+    private CellStyle createFooterStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setFontName("Aptos Narrow");
+        font.setFontHeightInPoints((short) 11);
+        style.setFont(font);
+        return style;
+    }
+
+    private int addEventHeader(Sheet sheet, TEvent event, TOrg org, String title, int rowIdx, CellStyle r1Style, CellStyle headingStyle) {
+        String eventName = event.getName();
+        String eventDate = event.getEventDt() != null ? event.getEventDt().toString() : "";
+        String location = "Location : " + (event.getLocation() != null ? event.getLocation() : "");
+        String weather = "Weather : " + (event.getWeather() != null ? event.getWeather() : "");
+
+        Row row1 = sheet.createRow(rowIdx++);
+        Cell cell1 = row1.createCell(0);
+        cell1.setCellValue(eventName);
+        cell1.setCellStyle(r1Style);
+
+        Row row2 = sheet.createRow(rowIdx++);
+        Cell cell2 = row2.createCell(0);
+        cell2.setCellValue(eventDate);
+        cell2.setCellStyle(headingStyle);
+
+        Row row3 = sheet.createRow(rowIdx++);
+        Cell cell3 = row3.createCell(0);
+        cell3.setCellValue(title);
+        cell3.setCellStyle(headingStyle);
+
+        Row row4 = sheet.createRow(rowIdx++);
+        Cell cell4 = row4.createCell(0);
+        cell4.setCellValue(location);
+        cell4.setCellStyle(headingStyle);
+
+        Row row5 = sheet.createRow(rowIdx++);
+        Cell cell5 = row5.createCell(0);
+        cell5.setCellValue(weather);
+        cell5.setCellStyle(headingStyle);
+
+        return rowIdx;
+    }
+
+    private void addFooter(Sheet sheet, int rowIdx, int lastCol, TOrg org, CellStyle footerStyle) {
+        String orgName = (org != null && org.getAlias() != null) ? org.getAlias() : "MyPaceTracker";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm:ss.SS a");
+        String formattedNow = LocalDateTime.now().format(formatter);
+        String footerText = "Timing & Results by " + orgName + "; Printed at " + formattedNow;
+
+        Row footerRow = sheet.createRow(rowIdx);
+        Cell footerCell = footerRow.createCell(0);
+        footerCell.setCellValue(footerText);
+        footerCell.setCellStyle(footerStyle);
+
+        if (lastCol > 0) {
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(
+                    footerRow.getRowNum(), footerRow.getRowNum(), 0, lastCol
+            ));
+        }
+    }
+
+    private CellStyle createDataStyle(Workbook workbook, boolean alternateRow) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setFontName("Aptos Narrow");
+        font.setFontHeightInPoints((short) 11);
+        if (alternateRow) {
+            font.setColor(IndexedColors.BLACK.getIndex());
+            style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        }
+        style.setFont(font);
+        return style;
+    }
+
+    public byte[] generateOverallRankExcel(String eventId, String distance, String orgId) throws Exception {
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        Optional<TOrg> orgs = orgRepository.findById(orgId);
+        TOrg org = orgs.orElse(null);
+        
+        List<EventCategoryResultResponse> results = statisticReportService.getOverallRankResults(eventId, distance);
+        
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("OverallRank");
+            
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle headerStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+            
+            int rowIdx = 0;
+            rowIdx = addEventHeader(sheet, event, org, "Overall Rank - " + distance, rowIdx, r1Style, headingStyle);
+            rowIdx++; // Empty row
+            
+            String[] headers = {"Overall Rank", "Gender Rank", "Category Rank", "Bib", "Name", "Category", "Official Time", "Net Time"};
+            Row headerRow = sheet.createRow(rowIdx++);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            
+            for (EventCategoryResultResponse dto : results) {
+                boolean alternate = (rowIdx % 2 == 0);
+                CellStyle rowStyle = alternate ? dataStyleAlt : dataStyleDefault;
+                Row row = sheet.createRow(rowIdx++);
+                
+                Cell c0 = row.createCell(0);
+                c0.setCellValue(dto.getRank1Tot());
+                c0.setCellStyle(rowStyle);
+                
+                Cell c1 = row.createCell(1);
+                c1.setCellValue(dto.getRank1Mix());
+                c1.setCellStyle(rowStyle);
+                
+                Cell c2 = row.createCell(2);
+                c2.setCellValue(dto.getRank1Cat());
+                c2.setCellStyle(rowStyle);
+                
+                Cell c3 = row.createCell(3);
+                c3.setCellValue(dto.getBib() != null ? dto.getBib() : "");
+                c3.setCellStyle(rowStyle);
+                
+                Cell c4 = row.createCell(4);
+                c4.setCellValue(dto.getName() != null ? dto.getName() : "");
+                c4.setCellStyle(rowStyle);
+                
+                Cell c5 = row.createCell(5);
+                c5.setCellValue(dto.getCat() != null ? dto.getCat() : "");
+                c5.setCellStyle(rowStyle);
+                
+                Cell c6 = row.createCell(6);
+                c6.setCellValue(dto.getOfficialTime() != null ? dto.getOfficialTime() : "");
+                c6.setCellStyle(rowStyle);
+                
+                Cell c7 = row.createCell(7);
+                c7.setCellValue(dto.getNetTime() != null ? dto.getNetTime() : "");
+                c7.setCellStyle(rowStyle);
+            }
+            
+            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
+            
+            sheet.setColumnWidth(0, 80 * 36);  // Overall Rank
+            sheet.setColumnWidth(1, 80 * 36);  // Gender Rank
+            sheet.setColumnWidth(2, 80 * 36);  // Category Rank
+            sheet.setColumnWidth(3, 80 * 36);  // Bib
+            sheet.setColumnWidth(4, 250 * 36); // Name
+            sheet.setColumnWidth(5, 150 * 36); // Category
+            sheet.setColumnWidth(6, 120 * 36); // Official Time
+            sheet.setColumnWidth(7, 120 * 36); // Net Time
+            
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    public byte[] generateGenderRankExcel(String eventId, String distance, String gender, String orgId) throws Exception {
+        TEvent event = eventRepository.findById(eventId).orElse(null);
+        Optional<TOrg> orgs = orgRepository.findById(orgId);
+        TOrg org = orgs.orElse(null);
+        
+        List<EventCategoryResultResponse> results = statisticReportService.getGenderRankResults(eventId, distance, gender);
+        
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("GenderRank");
+            
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle headerStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+            
+            int rowIdx = 0;
+            rowIdx = addEventHeader(sheet, event, org, "Gender Rank - " + distance + " (" + gender + ")", rowIdx, r1Style, headingStyle);
+            rowIdx++; // Empty row
+            
+            String[] headers = {"Rank", "Bib", "Name", "Category", "Official Time", "Net Time"};
+            Row headerRow = sheet.createRow(rowIdx++);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            
+            for (EventCategoryResultResponse dto : results) {
+                boolean alternate = (rowIdx % 2 == 0);
+                CellStyle rowStyle = alternate ? dataStyleAlt : dataStyleDefault;
+                Row row = sheet.createRow(rowIdx++);
+                
+                Cell c0 = row.createCell(0);
+                c0.setCellValue(dto.getRank1Mix());
+                c0.setCellStyle(rowStyle);
+                
+                Cell c1 = row.createCell(1);
+                c1.setCellValue(dto.getBib() != null ? dto.getBib() : "");
+                c1.setCellStyle(rowStyle);
+                
+                Cell c2 = row.createCell(2);
+                c2.setCellValue(dto.getName() != null ? dto.getName() : "");
+                c2.setCellStyle(rowStyle);
+                
+                Cell c3 = row.createCell(3);
+                c3.setCellValue(dto.getCat() != null ? dto.getCat() : "");
+                c3.setCellStyle(rowStyle);
+                
+                Cell c4 = row.createCell(4);
+                c4.setCellValue("'" + (dto.getOfficialTime() != null ? dto.getOfficialTime() : ""));
+                c4.setCellStyle(rowStyle);
+                
+                Cell c5 = row.createCell(5);
+                c5.setCellValue("'" + (dto.getNetTime() != null ? dto.getNetTime() : ""));
+                c5.setCellStyle(rowStyle);
+            }
+            
+            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
+            
+            sheet.setColumnWidth(0, 80 * 36);
+            sheet.setColumnWidth(1, 80 * 36);
+            sheet.setColumnWidth(2, 250 * 36);
+            sheet.setColumnWidth(3, 150 * 36);
+            sheet.setColumnWidth(4, 120 * 36);
+            sheet.setColumnWidth(5, 120 * 36);
+            
             workbook.write(out);
             return out.toByteArray();
         }
