@@ -197,10 +197,22 @@ public class RaceService {
                         existing.setDq(false);
                         existing.setFs(false);
                         existing.setNsbf(false);
+                        existing.setNr(false);
                         // Initialize rank fields to 0
                         existing.setRank1cat(0);
                         existing.setRank1mix(0);
                         existing.setRank1tot(0);
+                        // Initialize checkpoint times to 0
+                        existing.setTimecp1(0);
+                        existing.setTimecp2(0);
+                        existing.setTimecp3(0);
+                        existing.setTimecp4(0);
+                        existing.setTimecp5(0);
+                        existing.setTimecp6(0);
+                        existing.setTimecp7(0);
+                        existing.setTimecp8(0);
+                        existing.setTimecp9(0);
+                        existing.setTimecp10(0);
                         if (sex != null && !sex.isEmpty()) {
                             existing.setSex(sex);
                         }
@@ -226,10 +238,22 @@ public class RaceService {
                         newResult.setDq(false);
                         newResult.setFs(false);
                         newResult.setNsbf(false);
+                        newResult.setNr(false);
                         // Initialize rank fields to 0
                         newResult.setRank1cat(0);
                         newResult.setRank1mix(0);
                         newResult.setRank1tot(0);
+                        // Initialize checkpoint times to 0
+                        newResult.setTimecp1(0);
+                        newResult.setTimecp2(0);
+                        newResult.setTimecp3(0);
+                        newResult.setTimecp4(0);
+                        newResult.setTimecp5(0);
+                        newResult.setTimecp6(0);
+                        newResult.setTimecp7(0);
+                        newResult.setTimecp8(0);
+                        newResult.setTimecp9(0);
+                        newResult.setTimecp10(0);
                         if (sex != null && !sex.isEmpty()) {
                             newResult.setSex(sex);
                         }

@@ -28,6 +28,8 @@ public class SessionValidationInterceptor implements HandlerInterceptor {
         String requestURI = request.getRequestURI();
         if (requestURI.contains("/auth/login") || 
             requestURI.contains("/actuator") ||
+            requestURI.contains("/public/leaderboard") ||
+            requestURI.contains("/race/categories") ||
             requestURI.endsWith("/favicon.ico")) {
             return true;
         }
