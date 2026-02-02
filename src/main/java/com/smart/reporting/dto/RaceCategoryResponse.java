@@ -20,7 +20,9 @@ public class RaceCategoryResponse {
     private String checkpointlist;
     private String raceMode;
     private int toplist;
+    private int topprize;
     private int islive;
+    private int isResult;
 
     
 
@@ -159,11 +161,26 @@ public class RaceCategoryResponse {
         this.toplist = toplist;
     }
 
+    public int getTopprize() {
+        return topprize;
+    }
+
+    public void setTopprize(int topprize) {
+        this.topprize = topprize;
+    }
+
     public int getIslive() {
         return islive;
     }
 
     public void setIslive(int islive) {
         this.islive = islive;
+    }
+
+    public int getIsResult() {
+        return isResult;
+    }
+    public void setIsResult(int isResult) {
+        this.isResult = isResult;
     }
 }

@@ -53,6 +53,7 @@ public class RaceService {
                         cat.getCplist(),
                         cat.getRacemode(),
                         cat.getTop() != null ? cat.getTop() : 0,
+                        cat.getTopPrize() != null ? cat.getTopPrize() : 0,
                         cat.getIsLive() != null ? cat.getIsLive() : 0,
                         cat.getIsResult() != null ? cat.getIsResult() : 0
                 ))
@@ -75,6 +76,7 @@ public class RaceService {
         cat.setCplist(req.getCheckpointlist());
         cat.setRacemode(req.getRaceMode());
         cat.setTop(req.getToplist());
+        cat.setTopPrize(req.getTopprize());
         cat.setIsResult(req.getIsresult());
         cat.setIsLive(req.getIslive());
         
@@ -112,6 +114,7 @@ public class RaceService {
             cat.setCplist(req.getCheckpointlist());
         }
         cat.setTop(req.getToplist());
+        cat.setTopPrize(req.getTopprize());
         cat.setIsResult(req.getIsresult());
         
         TEventCat saved = tEventCatRepository.save(cat);
@@ -123,6 +126,11 @@ public class RaceService {
         resp.setCategory(saved.getCategory());
         resp.setDistance(saved.getDistance());
         resp.setGender(saved.getGender());
+        resp.setRaceMode(saved.getRacemode());
+        resp.setCheckpointlist(saved.getCplist());
+        resp.setToplist(saved.getTop());
+        resp.setTopprize(saved.getTopPrize() != null ? saved.getTopPrize() : 0);
+        resp.setIslive(saved.getIsLive());
         return resp;
     }
 

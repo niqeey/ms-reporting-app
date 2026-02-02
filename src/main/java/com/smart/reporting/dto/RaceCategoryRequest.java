@@ -20,6 +20,7 @@ public class RaceCategoryRequest {
     private String checkpointlist;
     private String raceMode;
     private int toplist;
+    private int topprize;
     private int islive;
     private int isresult;
 
@@ -158,6 +159,14 @@ public class RaceCategoryRequest {
 
     public void setToplist(int toplist) {
         this.toplist = toplist;
+    }
+
+    public int getTopprize() {
+        return topprize;
+    }
+
+    public void setTopprize(int topprize) {
+        this.topprize = topprize;
     }
 
     public int getIslive() {

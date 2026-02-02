@@ -49,6 +49,8 @@ public class RaceSetupService {
         cat.setTimegun4(req.getTimegun4());
         cat.setTimegun5(req.getTimegun5());
         cat.setTimegun6(req.getTimegun6());
+        cat.setTop(req.getToplist());
+        cat.setTopPrize(req.getTopprize());
         return cat;
     }
 
@@ -69,6 +71,8 @@ public class RaceSetupService {
         resp.setTimegun4(cat.getTimegun4());
         resp.setTimegun5(cat.getTimegun5());
         resp.setTimegun6(cat.getTimegun6());
+        resp.setToplist(cat.getTop() != null ? cat.getTop() : 0);
+        resp.setTopprize(cat.getTopPrize() != null ? cat.getTopPrize() : 0);
         return resp;
     }
 }

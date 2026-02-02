@@ -13,6 +13,7 @@ public class EventCategoryResponse {
     private String checkpointlist;
     private String raceMode;
     private int toplist;
+    private int topprize;
     private int islive;
 
 
@@ -56,6 +57,14 @@ public class EventCategoryResponse {
         this.toplist = toplist;
     }
 
+    public int getTopprize() {
+        return topprize;
+    }
+
+    public void setTopprize(int topprize) {
+        this.topprize = topprize;
+    }
+
     public int getIslive() {
         return islive;
     }
@@ -87,6 +96,7 @@ public class EventCategoryResponse {
         String checkpointlist,
         String raceMode,
         int toplist,
+        int topprize,
         int islive,
         int isresult
     ) {
@@ -100,6 +110,7 @@ public class EventCategoryResponse {
         this.checkpointlist = checkpointlist;
         this.raceMode = raceMode;
         this.toplist = toplist;
+        this.topprize = topprize;
         this.islive = islive;
         this.isresult = isresult;
     }

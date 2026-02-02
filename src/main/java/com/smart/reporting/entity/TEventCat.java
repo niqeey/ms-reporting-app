@@ -67,6 +67,9 @@ public class TEventCat {
     @Column(name = "Top")
     private Integer top;
 
+    @Column(name = "top_prize")
+    private Integer topPrize;
+
     @Column(name = "is_Live")
     private Integer isLive;
 
