@@ -58,6 +58,9 @@ public class LeaderboardService {
                 
                 return response;
             }
-        );
+        ).stream()
+         .filter(r -> r.getRankCat() > 0) // Filter out records without a rank
+         .sorted((r1, r2) -> Integer.compare(r1.getRankCat(), r2.getRankCat())) // Sort by rank (ascending)
+         .collect(Collectors.toList());
     }
 }

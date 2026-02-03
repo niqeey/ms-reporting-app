@@ -137,6 +137,14 @@ public class RaceService {
     public void deleteCategory(Long id) {
         tEventCatRepository.deleteById(id);
     }
+
+    public void updateTimegun(String eventId, String cat, Integer timegun) {
+        int updatedCats = tEventCatRepository.updateTimegunByEventIdAndCat(eventId, cat, timegun);
+        if (updatedCats == 0) {
+            throw new RuntimeException("Category not found for eventId: " + eventId + ", cat: " + cat);
+        }
+        tResultsRepository.updateTimegunByEventIdAndCat(eventId, cat, timegun);
+    }
     
     public CsvUploadResponse uploadParticipantsCsv(MultipartFile file, String eventId, String cat) throws Exception {
         int totalRows = 0;

@@ -83,16 +83,16 @@ public class ReportController {
             dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
             dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
             dto.setTimeGun(TimeFormatUtil.intToTimeString(result.getTimegun()));
-            dto.setTimeCP1(TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()));
-            dto.setTimeCP2(TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()));
-            dto.setTimeCP3(TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()));
-            dto.setTimeCP4(TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()));
-            dto.setTimeCP5(TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()));
-            dto.setTimeCP6(TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()));
-            dto.setTimeCP7(TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()));
-            dto.setTimeCP8(TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()));
-            dto.setTimeCP9(TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()));
-            dto.setTimeCP10(TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()));
+            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
+            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
+            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
+            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()) : null);
+            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()) : null);
+            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()) : null);
+            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()) : null);
+            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()) : null);
+            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()) : null);
+            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()) : null);
             return dto;
         }).collect(Collectors.toList());
         return responseList;
@@ -162,16 +162,16 @@ public class ReportController {
             dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
             dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
             dto.setTimeGun(TimeFormatUtil.intToTimeString(result.getTimegun()));
-            dto.setTimeCP1(TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()));
-            dto.setTimeCP2(TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()));
-            dto.setTimeCP3(TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()));
-            dto.setTimeCP4(TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()));
-            dto.setTimeCP5(TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()));
-            dto.setTimeCP6(TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()));
-            dto.setTimeCP7(TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()));
-            dto.setTimeCP8(TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()));
-            dto.setTimeCP9(TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()));
-            dto.setTimeCP10(TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()));
+            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
+            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
+            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
+            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()) : null);
+            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()) : null);
+            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()) : null);
+            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()) : null);
+            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()) : null);
+            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()) : null);
+            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()) : null);
             // Add any additional fields as needed
             return dto;
         }).collect(Collectors.toList());
@@ -201,16 +201,16 @@ public class ReportController {
             dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
             dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
             dto.setTimeGun(TimeFormatUtil.intToTimeString(result.getTimegun()));
-            dto.setTimeCP1(TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()));
-            dto.setTimeCP2(TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()));
-            dto.setTimeCP3(TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()));
-            dto.setTimeCP4(TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()));
-            dto.setTimeCP5(TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()));
-            dto.setTimeCP6(TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()));
-            dto.setTimeCP7(TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()));
-            dto.setTimeCP8(TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()));
-            dto.setTimeCP9(TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()));
-            dto.setTimeCP10(TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()));
+            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
+            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
+            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
+            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()) : null);
+            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()) : null);
+            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()) : null);
+            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()) : null);
+            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()) : null);
+            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()) : null);
+            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()) : null);
             // Add any additional fields as needed
             return dto;
         }).collect(Collectors.toList());
@@ -356,6 +356,15 @@ public class ReportController {
             // Add TimeFinish column after CPs
             field.createCell(colIdx).setCellValue("TimeFinish");
             field.getCell(colIdx).setCellStyle(headerStyle);
+            colIdx++;
+
+            // Add Country and NRIC columns
+            field.createCell(colIdx).setCellValue("Country");
+            field.getCell(colIdx).setCellStyle(headerStyle);
+            colIdx++;
+
+            field.createCell(colIdx).setCellValue("NRIC");
+            field.getCell(colIdx).setCellStyle(headerStyle);
 
             // Create data row styles
             CellStyle dataStyleDefault = workbook.createCellStyle(); // No fill (default)
@@ -429,9 +438,19 @@ public class ReportController {
                 }
 
                 // TimeFinish
-                Cell finishCell = row.createCell(dataColIdx);
+                Cell finishCell = row.createCell(dataColIdx++);
                 finishCell.setCellValue(TimeFormatUtil.intToTimeString(result.getTimefinish()));
                 finishCell.setCellStyle(rowStyle);
+
+                // Country
+                Cell countryCell = row.createCell(dataColIdx++);
+                countryCell.setCellValue(result.getCountry() != null ? result.getCountry() : "");
+                countryCell.setCellStyle(rowStyle);
+
+                // NRIC
+                Cell nricCell = row.createCell(dataColIdx++);
+                nricCell.setCellValue(result.getNric() != null ? result.getNric() : "");
+                nricCell.setCellStyle(rowStyle);
             }
 
             // After writing all data rows, add the footer row

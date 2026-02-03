@@ -17,7 +17,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         System.out.println("Configuring CORS...");
         registry.addMapping("/**") // Allow all endpoints
-                .allowedOrigins("https://www.mypacetracker.com", "http://192.168.1.184:7755", "http://localhost:7755", "http://localhost:7756") // Allow calls from these origins
+                .allowedOrigins("https://www.mypacetracker.com", "https://results.mypacetracker.com", "http://192.168.1.184:7755", "http://localhost:7755", "http://localhost:7756", "http://localhost:7705") // Allow calls from these origins
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Allow these HTTP methods
                 .allowedHeaders("*") // Allow all headers
                 .exposedHeaders("OrgId", "UserName", "SessionId", "SessionExpiryTime", "Role") // Expose custom headers

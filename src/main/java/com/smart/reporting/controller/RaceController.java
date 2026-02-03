@@ -42,6 +42,16 @@ public class RaceController {
         return ResponseEntity.ok(resp);
     }
 
+    // Update timegun for category and results
+    @PostMapping("/category/timegun")
+    public ResponseEntity<?> updateTimegun(@RequestBody RaceCategoryRequest req) {
+        if (req.getEventId() == null || req.getCat() == null || req.getTimegun() == null) {
+            return ResponseEntity.badRequest().body("eventId, cat, and timegun are required");
+        }
+        raceService.updateTimegun(req.getEventId(), req.getCat(), req.getTimegun());
+        return ResponseEntity.ok("Timegun updated successfully");
+    }
+
     // Delete a race category by id
     @DeleteMapping("/category")
     public ResponseEntity<?> deleteCategory(@RequestParam Long id) {

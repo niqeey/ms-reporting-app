@@ -2,9 +2,11 @@ package com.smart.reporting.repository;
 
 import com.smart.reporting.entity.TResults;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -32,4 +34,9 @@ public interface TResultsRepository extends JpaRepository<TResults, Integer> {
     
     @Query("SELECT COALESCE(MAX(r.pid), 0) FROM TResults r")
     Integer findMaxPid();
+
+    @Transactional
+    @Modifying
+    @Query("UPDATE TResults r SET r.timegun = :timegun WHERE r.eventId = :eventId AND r.cat = :cat")
+    int updateTimegunByEventIdAndCat(String eventId, String cat, Integer timegun);
 }
