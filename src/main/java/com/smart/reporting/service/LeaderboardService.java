@@ -54,6 +54,7 @@ public class LeaderboardService {
                 response.setTimeCP9(TimeFormatUtil.intToTimeString(rs.getInt("timecp9") > 0 ? rs.getInt("timecp9") - timeGun : 0));
                 response.setTimeCP10(TimeFormatUtil.intToTimeString(rs.getInt("timecp10") > 0 ? rs.getInt("timecp10") - timeGun : 0));
                 
+                response.setSex(rs.getString("sex"));
                 response.setCplist(rs.getString("cplist"));
                 
                 return response;

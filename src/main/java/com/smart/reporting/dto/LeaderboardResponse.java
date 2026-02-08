@@ -23,6 +23,7 @@ public class LeaderboardResponse {
     private String timeCP9;
     private String timeCP10;
     private String cplist;
+    private String sex;
 
     // Constructors
     public LeaderboardResponse() {
@@ -203,5 +204,13 @@ public class LeaderboardResponse {
 
     public void setCplist(String cplist) {
         this.cplist = cplist;
+    }
+
+    public String getSex() {
+        return sex;
+    }
+
+    public void setSex(String sex) {
+        this.sex = sex;
     }
 }
