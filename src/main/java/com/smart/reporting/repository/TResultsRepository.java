@@ -23,6 +23,10 @@ public interface TResultsRepository extends JpaRepository<TResults, Integer> {
     // For Overall Rank (RANK1TOT)
     List<TResults> findByEventIdAndDistanceAndRank1totGreaterThanOrderByRank1totAsc(String eventId, BigDecimal distance, int rank1tot);
     
+    // For Overall Rank with 0 values last
+    @Query("SELECT r FROM TResults r WHERE r.eventId = :eventId AND r.distance = :distance ORDER BY CASE WHEN r.rank1tot = 0 THEN 1 ELSE 0 END, r.rank1tot ASC")
+    List<TResults> findByEventIdAndDistanceOrderByRank1totAscZerosLast(String eventId, BigDecimal distance);
+    
     // For Gender Rank (RANK1MIX)
     List<TResults> findByEventIdAndDistanceAndSexAndRank1mixGreaterThanOrderByRank1mixAsc(String eventId, BigDecimal distance, String sex, int rank1mix);
     

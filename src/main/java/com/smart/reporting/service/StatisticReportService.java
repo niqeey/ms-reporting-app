@@ -12,6 +12,7 @@ import com.smart.reporting.dto.StatisticRegListDto;
 import com.smart.reporting.dto.StatisticReportDto;
 import com.smart.reporting.dto.StatisticStartListDto;
 import com.smart.reporting.entity.TResults;
+import com.smart.reporting.entity.TEventCat;
 import com.smart.reporting.repository.TResultsRepository;
 import com.smart.reporting.util.TimeFormatUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,9 @@ public class StatisticReportService {
 
     @Autowired
     private TResultsRepository tResultsRepository;
+    
+    @Autowired
+    private EventCatService eventCatService;
 
     public List<Object[]> callStoredProcedure(String procedureName, String eventId) {
         return entityManager
@@ -261,7 +265,33 @@ public class StatisticReportService {
     }
 
     public List<EventCategoryResultResponse> getOverallRankResults(String eventId, String distance) {
-        List<TResults> results = tResultsRepository.findByEventIdAndDistanceAndRank1totGreaterThanOrderByRank1totAsc(eventId, new BigDecimal(distance), 0);
+        List<TResults> results = tResultsRepository.findByEventIdAndDistanceAndRank1totGreaterThanOrderByRank1totAsc(eventId, new BigDecimal(distance), -1);
+        
+        // Sort: ascending order with zeros at the end
+        results.sort((a, b) -> {
+            int aRank = a.getRank1tot() != null ? a.getRank1tot() : 0;
+            int bRank = b.getRank1tot() != null ? b.getRank1tot() : 0;
+            
+            // Put zeros at the end
+            if (aRank == 0 && bRank == 0) return 0;
+            if (aRank == 0) return 1;
+            if (bRank == 0) return -1;
+            
+            // Sort non-zero values in ascending order
+            return Integer.compare(aRank, bRank);
+        });
+        
+        // Get cplist from eventcat - use the cat from first result
+        String cplist = null;
+        if (results != null && !results.isEmpty()) {
+            String cat = results.get(0).getCat();
+            List<TEventCat> eventcat = eventCatService.getByEventIdAndCat(eventId, cat);
+            if (eventcat != null && !eventcat.isEmpty()) {
+                cplist = eventcat.get(0).getCplist();
+            }
+        }
+        
+        final String finalCplist = cplist;
         return results.stream().map(result -> {
             EventCategoryResultResponse dto = new EventCategoryResultResponse();
             dto.setRank1Tot(result.getRank1tot());
@@ -270,8 +300,52 @@ public class StatisticReportService {
             dto.setBib(result.getBib());
             dto.setName(result.getName());
             dto.setCat(result.getCat());
+            dto.setCplist(finalCplist);
             dto.setOfficialTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()));
             dto.setNetTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()));
+            dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
+            dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
+            
+            // Only set TimeCP values that are in cplist
+            if (finalCplist != null && !finalCplist.isEmpty()) {
+                String[] cps = finalCplist.split(",");
+                for (String cp : cps) {
+                    String cpTrim = cp.trim();
+                    switch (cpTrim) {
+                        case "TimeCP1":
+                            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()) : null);
+                            break;
+                        case "TimeCP2":
+                            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()) : null);
+                            break;
+                        case "TimeCP3":
+                            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()) : null);
+                            break;
+                        case "TimeCP4":
+                            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()) : null);
+                            break;
+                        case "TimeCP5":
+                            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()) : null);
+                            break;
+                        case "TimeCP6":
+                            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()) : null);
+                            break;
+                        case "TimeCP7":
+                            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()) : null);
+                            break;
+                        case "TimeCP8":
+                            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()) : null);
+                            break;
+                        case "TimeCP9":
+                            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()) : null);
+                            break;
+                        case "TimeCP10":
+                            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()) : null);
+                            break;
+                    }
+                }
+            }
+            
             return dto;
         }).collect(Collectors.toList());
     }
@@ -290,6 +364,31 @@ public class StatisticReportService {
             System.out.println("DEBUG: First result Sex value='" + results.get(0).getSex() + "', rank1mix=" + results.get(0).getRank1mix());
         }
         
+        // Sort: ascending order with zeros at the end
+        results.sort((a, b) -> {
+            int aRank = a.getRank1mix() != null ? a.getRank1mix() : 0;
+            int bRank = b.getRank1mix() != null ? b.getRank1mix() : 0;
+            
+            // Put zeros at the end
+            if (aRank == 0 && bRank == 0) return 0;
+            if (aRank == 0) return 1;
+            if (bRank == 0) return -1;
+            
+            // Sort non-zero values in ascending order
+            return Integer.compare(aRank, bRank);
+        });
+        
+        // Get cplist from eventcat - use the cat from first result
+        String cplist = null;
+        if (results != null && !results.isEmpty()) {
+            String cat = results.get(0).getCat();
+            List<TEventCat> eventcat = eventCatService.getByEventIdAndCat(eventId, cat);
+            if (eventcat != null && !eventcat.isEmpty()) {
+                cplist = eventcat.get(0).getCplist();
+            }
+        }
+        
+        final String finalCplist = cplist;
         // Filter out results where rank1mix is null or 0
         return results.stream()
                 .filter(result -> result.getRank1mix() != null && result.getRank1mix() > 0)
@@ -300,8 +399,51 @@ public class StatisticReportService {
             dto.setBib(result.getBib());
             dto.setName(result.getName());
             dto.setCat(result.getCat());
+            dto.setCplist(finalCplist);
             dto.setOfficialTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()));
             dto.setNetTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()));
+            dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
+            dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
+            
+            // Only set TimeCP values that are in cplist
+            if (finalCplist != null && !finalCplist.isEmpty()) {
+                String[] cps = finalCplist.split(",");
+                for (String cp : cps) {
+                    String cpTrim = cp.trim();
+                    switch (cpTrim) {
+                        case "TimeCP1":
+                            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()) : null);
+                            break;
+                        case "TimeCP2":
+                            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()) : null);
+                            break;
+                        case "TimeCP3":
+                            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()) : null);
+                            break;
+                        case "TimeCP4":
+                            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()) : null);
+                            break;
+                        case "TimeCP5":
+                            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()) : null);
+                            break;
+                        case "TimeCP6":
+                            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()) : null);
+                            break;
+                        case "TimeCP7":
+                            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()) : null);
+                            break;
+                        case "TimeCP8":
+                            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()) : null);
+                            break;
+                        case "TimeCP9":
+                            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()) : null);
+                            break;
+                        case "TimeCP10":
+                            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()) : null);
+                            break;
+                    }
+                }
+            }
             return dto;
         }).collect(Collectors.toList());
     }

@@ -959,11 +959,38 @@ public class ReportExportService {
             rowIdx = addEventHeader(sheet, event, org, "Overall Rank - " + distance, rowIdx, r1Style, headingStyle);
             rowIdx++; // Empty row
             
-            String[] headers = {"Overall Rank", "Gender Rank", "Category Rank", "Bib", "Name", "Category", "Official Time", "Net Time"};
+            List<String> headers = new java.util.ArrayList<>();
+            headers.add("Overall Rank");
+            headers.add("Gender Rank");
+            headers.add("Category Rank");
+            headers.add("Bib");
+            headers.add("Name");
+            headers.add("Category");
+            headers.add("Official Time");
+            headers.add("Net Time");
+            headers.add("TimeStart");
+
+            String cplist = null;
+            if (!results.isEmpty()) {
+                cplist = results.get(0).getCplist();
+            }
+
+            if (cplist != null && !cplist.isEmpty()) {
+                String[] cps = cplist.split(",");
+                for (String cp : cps) {
+                    String cpTrim = cp.trim();
+                    if (!cpTrim.isEmpty()) {
+                        headers.add(cpTrim);
+                    }
+                }
+            }
+
+            headers.add("TimeFinish");
+
             Row headerRow = sheet.createRow(rowIdx++);
-            for (int i = 0; i < headers.length; i++) {
+            for (int i = 0; i < headers.size(); i++) {
                 Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
+                cell.setCellValue(headers.get(i));
                 cell.setCellStyle(headerStyle);
             }
             
@@ -972,49 +999,93 @@ public class ReportExportService {
                 CellStyle rowStyle = alternate ? dataStyleAlt : dataStyleDefault;
                 Row row = sheet.createRow(rowIdx++);
                 
-                Cell c0 = row.createCell(0);
+                int colIdx = 0;
+
+                Cell c0 = row.createCell(colIdx++);
                 c0.setCellValue(dto.getRank1Tot());
                 c0.setCellStyle(rowStyle);
-                
-                Cell c1 = row.createCell(1);
+
+                Cell c1 = row.createCell(colIdx++);
                 c1.setCellValue(dto.getRank1Mix());
                 c1.setCellStyle(rowStyle);
-                
-                Cell c2 = row.createCell(2);
+
+                Cell c2 = row.createCell(colIdx++);
                 c2.setCellValue(dto.getRank1Cat());
                 c2.setCellStyle(rowStyle);
-                
-                Cell c3 = row.createCell(3);
+
+                Cell c3 = row.createCell(colIdx++);
                 c3.setCellValue(dto.getBib() != null ? dto.getBib() : "");
                 c3.setCellStyle(rowStyle);
-                
-                Cell c4 = row.createCell(4);
+
+                Cell c4 = row.createCell(colIdx++);
                 c4.setCellValue(dto.getName() != null ? dto.getName() : "");
                 c4.setCellStyle(rowStyle);
-                
-                Cell c5 = row.createCell(5);
+
+                Cell c5 = row.createCell(colIdx++);
                 c5.setCellValue(dto.getCat() != null ? dto.getCat() : "");
                 c5.setCellStyle(rowStyle);
-                
-                Cell c6 = row.createCell(6);
+
+                Cell c6 = row.createCell(colIdx++);
                 c6.setCellValue(dto.getOfficialTime() != null ? dto.getOfficialTime() : "");
                 c6.setCellStyle(rowStyle);
-                
-                Cell c7 = row.createCell(7);
+
+                Cell c7 = row.createCell(colIdx++);
                 c7.setCellValue(dto.getNetTime() != null ? dto.getNetTime() : "");
                 c7.setCellStyle(rowStyle);
+
+                Cell c8 = row.createCell(colIdx++);
+                c8.setCellValue(dto.getTimeStart() != null ? dto.getTimeStart() : "");
+                c8.setCellStyle(rowStyle);
+
+                if (cplist != null && !cplist.isEmpty()) {
+                    String[] cps = cplist.split(",");
+                    for (String cp : cps) {
+                        String cpTrim = cp.trim();
+                        String value = "";
+                        switch (cpTrim) {
+                            case "TimeCP1": value = dto.getTimeCP1(); break;
+                            case "TimeCP2": value = dto.getTimeCP2(); break;
+                            case "TimeCP3": value = dto.getTimeCP3(); break;
+                            case "TimeCP4": value = dto.getTimeCP4(); break;
+                            case "TimeCP5": value = dto.getTimeCP5(); break;
+                            case "TimeCP6": value = dto.getTimeCP6(); break;
+                            case "TimeCP7": value = dto.getTimeCP7(); break;
+                            case "TimeCP8": value = dto.getTimeCP8(); break;
+                            case "TimeCP9": value = dto.getTimeCP9(); break;
+                            case "TimeCP10": value = dto.getTimeCP10(); break;
+                            default: value = ""; break;
+                        }
+                        Cell cpCell = row.createCell(colIdx++);
+                        cpCell.setCellValue(value != null ? value : "");
+                        cpCell.setCellStyle(rowStyle);
+                    }
+                }
+
+                Cell finishCell = row.createCell(colIdx++);
+                finishCell.setCellValue(dto.getTimeFinish() != null ? dto.getTimeFinish() : "");
+                finishCell.setCellStyle(rowStyle);
             }
-            
-            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
-            
-            sheet.setColumnWidth(0, 80 * 36);  // Overall Rank
-            sheet.setColumnWidth(1, 80 * 36);  // Gender Rank
-            sheet.setColumnWidth(2, 80 * 36);  // Category Rank
-            sheet.setColumnWidth(3, 80 * 36);  // Bib
-            sheet.setColumnWidth(4, 250 * 36); // Name
-            sheet.setColumnWidth(5, 150 * 36); // Category
-            sheet.setColumnWidth(6, 120 * 36); // Official Time
-            sheet.setColumnWidth(7, 120 * 36); // Net Time
+
+            addFooter(sheet, rowIdx, headers.size() - 1, org, footerStyle);
+
+            int totalColumns = headers.size();
+            for (int i = 1; i < totalColumns; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            sheet.setColumnWidth(0, 80 * 36);  // Overall Rank - Fixed width, no auto-size
+            sheet.setColumnWidth(1, Math.max(sheet.getColumnWidth(1), 80 * 36));  // Gender Rank
+            sheet.setColumnWidth(2, Math.max(sheet.getColumnWidth(2), 80 * 36));  // Category Rank
+            sheet.setColumnWidth(3, Math.max(sheet.getColumnWidth(3), 80 * 36));  // Bib
+            sheet.setColumnWidth(4, Math.max(sheet.getColumnWidth(4), 250 * 36)); // Name
+            sheet.setColumnWidth(5, Math.max(sheet.getColumnWidth(5), 150 * 36)); // Category
+            sheet.setColumnWidth(6, Math.max(sheet.getColumnWidth(6), 120 * 36)); // Official Time
+            sheet.setColumnWidth(7, Math.max(sheet.getColumnWidth(7), 120 * 36)); // Net Time
+            sheet.setColumnWidth(8, Math.max(sheet.getColumnWidth(8), 120 * 36)); // TimeStart
+
+            for (int i = 9; i < totalColumns; i++) {
+                sheet.setColumnWidth(i, Math.max(sheet.getColumnWidth(i), 120 * 36));
+            }
             
             workbook.write(out);
             return out.toByteArray();
@@ -1042,11 +1113,37 @@ public class ReportExportService {
             rowIdx = addEventHeader(sheet, event, org, "Gender Rank - " + distance + " (" + gender + ")", rowIdx, r1Style, headingStyle);
             rowIdx++; // Empty row
             
-            String[] headers = {"Rank", "Bib", "Name", "Category", "Official Time", "Net Time"};
+            List<String> headers = new java.util.ArrayList<>();
+            headers.add("Rank");
+            headers.add("Category Rank");
+            headers.add("Bib");
+            headers.add("Name");
+            headers.add("Category");
+            headers.add("Official Time");
+            headers.add("Net Time");
+            headers.add("TimeStart");
+
+            String cplist = null;
+            if (!results.isEmpty()) {
+                cplist = results.get(0).getCplist();
+            }
+
+            if (cplist != null && !cplist.isEmpty()) {
+                String[] cps = cplist.split(",");
+                for (String cp : cps) {
+                    String cpTrim = cp.trim();
+                    if (!cpTrim.isEmpty()) {
+                        headers.add(cpTrim);
+                    }
+                }
+            }
+
+            headers.add("TimeFinish");
+
             Row headerRow = sheet.createRow(rowIdx++);
-            for (int i = 0; i < headers.length; i++) {
+            for (int i = 0; i < headers.size(); i++) {
                 Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
+                cell.setCellValue(headers.get(i));
                 cell.setCellStyle(headerStyle);
             }
             
@@ -1055,39 +1152,88 @@ public class ReportExportService {
                 CellStyle rowStyle = alternate ? dataStyleAlt : dataStyleDefault;
                 Row row = sheet.createRow(rowIdx++);
                 
-                Cell c0 = row.createCell(0);
+                int colIdx = 0;
+
+                Cell c0 = row.createCell(colIdx++);
                 c0.setCellValue(dto.getRank1Mix());
                 c0.setCellStyle(rowStyle);
-                
-                Cell c1 = row.createCell(1);
-                c1.setCellValue(dto.getBib() != null ? dto.getBib() : "");
+
+                Cell c1 = row.createCell(colIdx++);
+                c1.setCellValue(dto.getRank1Cat());
                 c1.setCellStyle(rowStyle);
-                
-                Cell c2 = row.createCell(2);
-                c2.setCellValue(dto.getName() != null ? dto.getName() : "");
+
+                Cell c2 = row.createCell(colIdx++);
+                c2.setCellValue(dto.getBib() != null ? dto.getBib() : "");
                 c2.setCellStyle(rowStyle);
-                
-                Cell c3 = row.createCell(3);
-                c3.setCellValue(dto.getCat() != null ? dto.getCat() : "");
+
+                Cell c3 = row.createCell(colIdx++);
+                c3.setCellValue(dto.getName() != null ? dto.getName() : "");
                 c3.setCellStyle(rowStyle);
-                
-                Cell c4 = row.createCell(4);
-                c4.setCellValue("'" + (dto.getOfficialTime() != null ? dto.getOfficialTime() : ""));
+
+                Cell c4 = row.createCell(colIdx++);
+                c4.setCellValue(dto.getCat() != null ? dto.getCat() : "");
                 c4.setCellStyle(rowStyle);
-                
-                Cell c5 = row.createCell(5);
-                c5.setCellValue("'" + (dto.getNetTime() != null ? dto.getNetTime() : ""));
+
+                Cell c5 = row.createCell(colIdx++);
+                c5.setCellValue(dto.getOfficialTime() != null ? dto.getOfficialTime() : "");
                 c5.setCellStyle(rowStyle);
+
+                Cell c6 = row.createCell(colIdx++);
+                c6.setCellValue(dto.getNetTime() != null ? dto.getNetTime() : "");
+                c6.setCellStyle(rowStyle);
+
+                Cell c7 = row.createCell(colIdx++);
+                c7.setCellValue(dto.getTimeStart() != null ? dto.getTimeStart() : "");
+                c7.setCellStyle(rowStyle);
+
+                if (cplist != null && !cplist.isEmpty()) {
+                    String[] cps = cplist.split(",");
+                    for (String cp : cps) {
+                        String cpTrim = cp.trim();
+                        String value = "";
+                        switch (cpTrim) {
+                            case "TimeCP1": value = dto.getTimeCP1(); break;
+                            case "TimeCP2": value = dto.getTimeCP2(); break;
+                            case "TimeCP3": value = dto.getTimeCP3(); break;
+                            case "TimeCP4": value = dto.getTimeCP4(); break;
+                            case "TimeCP5": value = dto.getTimeCP5(); break;
+                            case "TimeCP6": value = dto.getTimeCP6(); break;
+                            case "TimeCP7": value = dto.getTimeCP7(); break;
+                            case "TimeCP8": value = dto.getTimeCP8(); break;
+                            case "TimeCP9": value = dto.getTimeCP9(); break;
+                            case "TimeCP10": value = dto.getTimeCP10(); break;
+                            default: value = ""; break;
+                        }
+                        Cell cpCell = row.createCell(colIdx++);
+                        cpCell.setCellValue(value != null ? value : "");
+                        cpCell.setCellStyle(rowStyle);
+                    }
+                }
+
+                Cell finishCell = row.createCell(colIdx++);
+                finishCell.setCellValue(dto.getTimeFinish() != null ? dto.getTimeFinish() : "");
+                finishCell.setCellStyle(rowStyle);
             }
-            
-            addFooter(sheet, rowIdx, headers.length - 1, org, footerStyle);
-            
-            sheet.setColumnWidth(0, 80 * 36);
-            sheet.setColumnWidth(1, 80 * 36);
-            sheet.setColumnWidth(2, 250 * 36);
-            sheet.setColumnWidth(3, 150 * 36);
-            sheet.setColumnWidth(4, 120 * 36);
-            sheet.setColumnWidth(5, 120 * 36);
+
+            addFooter(sheet, rowIdx, headers.size() - 1, org, footerStyle);
+
+            int totalColumns = headers.size();
+            for (int i = 1; i < totalColumns; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            sheet.setColumnWidth(0, 80 * 36);  // Rank - Fixed width, no auto-size
+            sheet.setColumnWidth(1, Math.max(sheet.getColumnWidth(1), 80 * 36));  // Category Rank
+            sheet.setColumnWidth(2, Math.max(sheet.getColumnWidth(2), 80 * 36));  // Bib
+            sheet.setColumnWidth(3, Math.max(sheet.getColumnWidth(3), 250 * 36)); // Name
+            sheet.setColumnWidth(4, Math.max(sheet.getColumnWidth(4), 150 * 36)); // Category
+            sheet.setColumnWidth(5, Math.max(sheet.getColumnWidth(5), 120 * 36)); // Official Time
+            sheet.setColumnWidth(6, Math.max(sheet.getColumnWidth(6), 120 * 36)); // Net Time
+            sheet.setColumnWidth(7, Math.max(sheet.getColumnWidth(7), 120 * 36)); // TimeStart
+
+            for (int i = 8; i < totalColumns; i++) {
+                sheet.setColumnWidth(i, Math.max(sheet.getColumnWidth(i), 120 * 36));
+            }
             
             workbook.write(out);
             return out.toByteArray();

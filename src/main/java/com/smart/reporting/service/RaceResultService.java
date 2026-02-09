@@ -62,7 +62,7 @@ public class RaceResultService {
     
     // Get results for Overall Rank (RANK1TOT)
     public List<TResults> getResultsByEventAndDistanceOrderByRank1tot(String eventId, String distance) {
-        return tResultsRepository.findByEventIdAndDistanceAndRank1totGreaterThanOrderByRank1totAsc(eventId, new BigDecimal(distance), 0);
+        return tResultsRepository.findByEventIdAndDistanceOrderByRank1totAscZerosLast(eventId, new BigDecimal(distance));
     }
     
     // Get results for Gender Rank (RANK1MIX)
