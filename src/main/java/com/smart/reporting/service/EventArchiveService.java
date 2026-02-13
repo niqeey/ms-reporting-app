@@ -191,7 +191,8 @@ public class EventArchiveService {
         target.setTimecp9(source.getTimecp9());
         target.setTimecp10(source.getTimecp10());
         
-        // Copy all time1 to time100 fields
+        // Copy all time0 to time100 fields
+        target.setTime0(source.getTime0());
         target.setTime1(source.getTime1());
         target.setTime2(source.getTime2());
         target.setTime3(source.getTime3());
@@ -367,7 +368,8 @@ public class EventArchiveService {
         target.setTimecp9(source.getTimecp9());
         target.setTimecp10(source.getTimecp10());
         
-        // Copy all time1 to time100 fields
+        // Copy all time0 to time100 fields
+        target.setTime0(source.getTime0());
         target.setTime1(source.getTime1());
         target.setTime2(source.getTime2());
         target.setTime3(source.getTime3());

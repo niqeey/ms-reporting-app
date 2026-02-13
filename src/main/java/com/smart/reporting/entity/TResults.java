@@ -172,6 +172,8 @@ public class TResults {
     @Column(name = "Timecp10")
     private Integer timecp10;
 
+        @Column(name = "time0")
+        private Integer time0;
     	@Column(name = "time1")
     private Integer time1;
     @Column(name = "time2")

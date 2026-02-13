@@ -21,6 +21,7 @@ public class LapResultResponse {
     private String lapTime;
     private String netTime;
     private String officialTime;
+    private String cplist;
     
     // Simplified: Use a map to store lap times dynamically
     private Map<String, String> lapTimes = new HashMap<>();
@@ -174,6 +175,14 @@ public class LapResultResponse {
 
     public void setOfficialTime(String officialTime) {
         this.officialTime = officialTime;
+    }
+
+    public String getCplist() {
+        return cplist;
+    }
+
+    public void setCplist(String cplist) {
+        this.cplist = cplist;
     }
 
     // Simplified getter/setter for lap times

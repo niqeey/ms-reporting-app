@@ -273,14 +273,33 @@ public class ReportController {
                 // Calculate lap count dynamically based on highest lap number with data
                 Integer maxLap = null;
                 
-                // Set lap time values (time1 to time50) using reflection
-                for (int i = 1; i <= 50; i++) {
+                // Set lap time values (time0 to time49) using reflection
+                // Check cplist to determine if halflap > 0
+                String cplist = eventcat.get(0).getCplist();
+                boolean includeTimeZero = false;
+                if (cplist != null && !cplist.isEmpty()) {
+                    String[] cplistParts = cplist.split(",");
+                    if (cplistParts.length > 0) {
+                        try {
+                            int halflap = Integer.parseInt(cplistParts[0].trim());
+                            includeTimeZero = halflap > 0;
+                        } catch (NumberFormatException e) {
+                            // If parsing fails, default to false
+                        }
+                    }
+                }
+                int startIndex = includeTimeZero ? 0 : 1;
+                int maxIndex = startIndex + 50;
+                for (int i = startIndex; i < maxIndex; i++) {
                     try {
                         Method getter = TResults.class.getMethod("getTime" + i);
                         Integer timeValue = (Integer) getter.invoke(result);
                         if (timeValue != null) {
                             dto.setLapTime(i, TimeFormatUtil.intToTimeString(timeValue));
-                            maxLap = i; // Track the highest lap number with data
+                            // Only count actual laps (time1+), not half-lap (time0)
+                            if (i > 0) {
+                                maxLap = i;
+                            }
                         }
                     } catch (Exception e) {
                         // Ignore if getter doesn't exist or fails

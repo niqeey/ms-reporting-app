@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -42,6 +43,7 @@ public class ReportExportService {
             String sheetName
     ) throws Exception {
         String cplist = eventcat.get(0).getCplist();
+        String raceMode = eventcat.get(0).getRacemode();
         String catName = eventcat.get(0).getCategory();
         String eventNm = event.getName();
         String eventLoc = event.getLocation();
@@ -53,6 +55,7 @@ public class ReportExportService {
         String title = "Official Result";
         String location = "Location : " + eventLoc;
         String weather = "Weather : " + eventWeather;
+        boolean isLapMode = "LAP".equalsIgnoreCase(raceMode);
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet(sheetName);
@@ -140,7 +143,38 @@ public class ReportExportService {
             field.getCell(5).setCellStyle(headerStyle);
 
             int colIdx = 6;
-            if (cplist != null && !cplist.isEmpty()) {
+            
+            // For LAP mode, generate lap columns based on cplist
+            // For TIME mode, use cplist as checkpoint names
+            if (isLapMode && cplist != null && !cplist.isEmpty()) {
+                String[] cplistParts = cplist.split(",");
+                int halflap = 0;
+                int lapCount = 0;
+                
+                if (cplistParts.length >= 3) {
+                    try {
+                        halflap = Integer.parseInt(cplistParts[0].trim());
+                        lapCount = Integer.parseInt(cplistParts[2].trim());
+                    } catch (NumberFormatException e) {
+                        // Use default values
+                    }
+                }
+                
+                // Add "1/2 Lap" column if halflap > 0
+                if (halflap > 0) {
+                    field.createCell(colIdx).setCellValue("1/2 Lap");
+                    field.getCell(colIdx).setCellStyle(headerStyle);
+                    colIdx++;
+                }
+                
+                // Add lap columns (Lap 1, Lap 2, etc.)
+                for (int i = 1; i <= lapCount; i++) {
+                    field.createCell(colIdx).setCellValue("Lap " + i);
+                    field.getCell(colIdx).setCellStyle(headerStyle);
+                    colIdx++;
+                }
+            } else if (!isLapMode && cplist != null && !cplist.isEmpty()) {
+                // TIME mode: treat cplist as checkpoint names
                 String[] cps = cplist.split(",");
                 for (String cp : cps) {
                     field.createCell(colIdx).setCellValue(cp.trim());
@@ -197,7 +231,48 @@ public class ReportExportService {
                 c5.setCellValue(TimeFormatUtil.intToTimeString(result.getTimestart()));
                 c5.setCellStyle(rowStyle);
 
-                if (cplist != null && !cplist.isEmpty()) {
+                // Handle LAP mode vs TIME mode columns
+                if (isLapMode && cplist != null && !cplist.isEmpty()) {
+                    String[] cplistParts = cplist.split(",");
+                    int halflap = 0;
+                    int lapCount = 0;
+                    
+                    if (cplistParts.length >= 3) {
+                        try {
+                            halflap = Integer.parseInt(cplistParts[0].trim());
+                            lapCount = Integer.parseInt(cplistParts[2].trim());
+                        } catch (NumberFormatException e) {
+                            // Use default values
+                        }
+                    }
+                    
+                    // Add time0 (half-lap) if halflap > 0
+                    if (halflap > 0) {
+                        Cell halfLapCell = row.createCell(dataColIdx++);
+                        try {
+                            Method getter = TResults.class.getMethod("getTime0");
+                            Integer timeValue = (Integer) getter.invoke(result);
+                            halfLapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
+                        } catch (Exception e) {
+                            halfLapCell.setCellValue("");
+                        }
+                        halfLapCell.setCellStyle(rowStyle);
+                    }
+                    
+                    // Add lap times (time1, time2, etc.)
+                    for (int i = 1; i <= lapCount; i++) {
+                        Cell lapCell = row.createCell(dataColIdx++);
+                        try {
+                            Method getter = TResults.class.getMethod("getTime" + i);
+                            Integer timeValue = (Integer) getter.invoke(result);
+                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
+                        } catch (Exception e) {
+                            lapCell.setCellValue("");
+                        }
+                        lapCell.setCellStyle(rowStyle);
+                    }
+                } else if (!isLapMode && cplist != null && !cplist.isEmpty()) {
+                    // TIME mode: use checkpoint fields
                     String[] cps = cplist.split(",");
                     for (String cp : cps) {
                         String cpTrim = cp.trim();

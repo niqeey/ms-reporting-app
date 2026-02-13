@@ -88,6 +88,13 @@ public class PublicLeaderboardController {
         List<TResults> results = raceResultService.getResultsByEventAndCat(eventId, request.getCategory());
         List<TEventCat> eventcat = eventCatService.getByEventIdAndCat(eventId, request.getCategory());
         
+        // Get cplist from eventcat
+        String cplist = null;
+        if (eventcat != null && eventcat.size() > 0) {
+            cplist = eventcat.get(0).getCplist();
+        }
+        final String finalCplist = cplist;
+        
         // Map results to LapResultResponse
         List<LapResultResponse> lapResponseList = results.stream().map(result -> {
             LapResultResponse dto = new LapResultResponse();
@@ -107,9 +114,25 @@ public class PublicLeaderboardController {
             dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "0");
             dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "0");
             dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : "0");
+            dto.setCplist(finalCplist);
             
-            // Set lap time values (time1 to time50) using reflection
-            for (int i = 1; i <= 50; i++) {
+            // Set lap time values (time0 to time49) using reflection
+            // Parse cplist to determine if halflap > 0 (if so, include time0)
+            boolean includeTimeZero = false;
+            if (finalCplist != null && !finalCplist.isEmpty()) {
+                String[] cplistParts = finalCplist.split(",");
+                if (cplistParts.length > 0) {
+                    try {
+                        int halflap = Integer.parseInt(cplistParts[0].trim());
+                        includeTimeZero = halflap > 0;
+                    } catch (NumberFormatException e) {
+                        // If parsing fails, default to false
+                    }
+                }
+            }
+            int startIndex = includeTimeZero ? 0 : 1;
+            int maxIndex = startIndex + 50;
+            for (int i = startIndex; i < maxIndex; i++) {
                 try {
                     Method getter = TResults.class.getMethod("getTime" + i);
                     Integer timeValue = (Integer) getter.invoke(result);

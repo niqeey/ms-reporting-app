@@ -103,7 +103,8 @@ public class RaceResultService {
         result.setTimecp8(archive.getTimecp8());
         result.setTimecp9(archive.getTimecp9());
         result.setTimecp10(archive.getTimecp10());
-        // Copy time1-time100 fields
+        // Copy time0-time100 fields
+        result.setTime0(archive.getTime0());
         result.setTime1(archive.getTime1());
         result.setTime2(archive.getTime2());
         result.setTime3(archive.getTime3());
@@ -375,17 +376,23 @@ public class RaceResultService {
             logger.info("Parsed cplist: halflap={}, numberOfLaps={}", halflap, numberOfLaps);
             
             // Determine which time column index to check
-            int timeColumnIndex = (halflap > 0) ? numberOfLaps + 1 : numberOfLaps;
-            logger.info("Determined timeColumnIndex={}", timeColumnIndex);
+            boolean hasTimeZero = results.stream().anyMatch(r -> r.getTime0() != null && r.getTime0() > 0);
+            int baseIndex = (halflap > 0) ? numberOfLaps + 1 : numberOfLaps;
+            int timeColumnIndex = hasTimeZero ? baseIndex - 1 : baseIndex;
+            if (timeColumnIndex < 0) {
+                timeColumnIndex = 0;
+            }
+            final int timeColumnIndexFinal = timeColumnIndex;
+            logger.info("Determined timeColumnIndex={}", timeColumnIndexFinal);
             
             // Filter results where the corresponding time column > 0
             List<TResults> filtered = results.stream()
                 .peek(result -> {
-                    int timeValue = getTimeColumnValue(result, timeColumnIndex);
+                    int timeValue = getTimeColumnValue(result, timeColumnIndexFinal);
                     logger.debug("Result bib={}, name={}, time[{}]={}, passes filter={}", 
-                        result.getBib(), result.getName(), timeColumnIndex, timeValue, timeValue > 0);
+                        result.getBib(), result.getName(), timeColumnIndexFinal, timeValue, timeValue > 0);
                 })
-                .filter(result -> getTimeColumnValue(result, timeColumnIndex) > 0)
+                .filter(result -> getTimeColumnValue(result, timeColumnIndexFinal) > 0)
                 .collect(Collectors.toList());
             
             logger.info("After LAP filtering: {} results remain", filtered.size());
@@ -397,11 +404,12 @@ public class RaceResultService {
     }
 
     /**
-     * Get the value of a time column (time1 through time18) by index
+     * Get the value of a time column (time0 through time18) by index
      */
     private Integer getTimeColumnValue(TResults result, int columnIndex) {
         Integer value;
         switch (columnIndex) {
+            case 0: value = result.getTime0() != null ? result.getTime0() : 0; break;
             case 1: value = result.getTime1() != null ? result.getTime1() : 0; break;
             case 2: value = result.getTime2() != null ? result.getTime2() : 0; break;
             case 3: value = result.getTime3() != null ? result.getTime3() : 0; break;

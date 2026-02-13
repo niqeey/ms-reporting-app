@@ -308,4 +308,38 @@ public class RaceService {
     public void updateParticipant(TResults participant) {
         tResultsRepository.save(participant);
     }
+
+    /**
+     * Start a LAP race by setting timestart based on halflap value
+     * If halflap = 0: timestart = time0
+     * If halflap > 0: timestart = timegun
+     */
+    public int startRace(String eventId, String cat, Integer halflap) {
+        List<TResults> results = tResultsRepository.findByEventIdAndCat(eventId, cat, org.springframework.data.domain.Pageable.unpaged());
+        
+        if (results == null || results.isEmpty()) {
+            return 0;
+        }
+        
+        int updatedCount = 0;
+        for (TResults result : results) {
+            if (halflap == 0) {
+                // If halflap = 0, set timestart = time0 (if time0 exists)
+                if (result.getTime0() != null && result.getTime0() > 0) {
+                    result.setTimestart(result.getTime0());
+                    tResultsRepository.save(result);
+                    updatedCount++;
+                }
+            } else {
+                // If halflap > 0, set timestart = timegun (if timegun exists)
+                if (result.getTimegun() != null && result.getTimegun() > 0) {
+                    result.setTimestart(result.getTimegun());
+                    tResultsRepository.save(result);
+                    updatedCount++;
+                }
+            }
+        }
+        
+        return updatedCount;
+    }
 }

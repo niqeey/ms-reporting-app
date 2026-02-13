@@ -5,6 +5,7 @@ import com.smart.reporting.dto.EventCategoryRequest;
 import com.smart.reporting.dto.EventCategoryResponse;
 import com.smart.reporting.dto.RaceCategoryRequest;
 import com.smart.reporting.dto.RaceCategoryResponse;
+import com.smart.reporting.dto.StartRaceRequest;
 import com.smart.reporting.service.RaceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -72,5 +73,16 @@ public class RaceController {
             CsvUploadResponse errorResponse = new CsvUploadResponse(0, 0, 0, "Error: " + e.getMessage());
             return ResponseEntity.badRequest().body(errorResponse);
         }
+    }
+
+    // Start LAP race - set timestart based on halflap value
+    @PostMapping("/category/start-race")
+    public ResponseEntity<?> startRace(@RequestBody StartRaceRequest req) {
+        if (req.getEventId() == null || req.getCat() == null || req.getHalflap() == null) {
+            return ResponseEntity.badRequest().body("eventId, cat, and halflap are required");
+        }
+        
+        int updatedCount = raceService.startRace(req.getEventId(), req.getCat(), req.getHalflap());
+        return ResponseEntity.ok("Race started. Updated " + updatedCount + " participants.");
     }
 }

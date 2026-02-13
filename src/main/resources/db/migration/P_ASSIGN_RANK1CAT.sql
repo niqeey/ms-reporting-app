@@ -67,6 +67,23 @@ BEGIN
             -- lap column contains the highest lap number the participant completed
             SET finishing = 'lap DESC, timeFinish ASC';
             
+            -- Update timeFinish to equal the last lap time (timeN where N = numberOfLaps)
+            SET @update_timefinish = CONCAT(
+                'UPDATE results ',
+                'SET timeFinish = Time', lap_numberOfLaps, ' ',
+                'WHERE EventId = "', in_eventid, '" AND cat = "', in_cat, '" ',
+                'AND Time', lap_numberOfLaps, ' IS NOT NULL AND Time', lap_numberOfLaps, ' > 0'
+            );
+            
+            -- Log timeFinish update
+            INSERT INTO servicelog(Query, Query_text, log_time)
+            VALUES('P_ASSIGN_RANK1CAT_UPDATE_TIMEFINISH', @update_timefinish, NOW());
+            
+            -- Execute timeFinish update
+            PREPARE stmt_timefinish FROM @update_timefinish;
+            EXECUTE stmt_timefinish;
+            DEALLOCATE PREPARE stmt_timefinish;
+            
         ELSE
             -- Original logic for non-LAP modes (NET/OFFICIAL)
             -- race_cp is comma-separated list, e.g., 'TimeCP1,TimeCP2,TimeFinish'
