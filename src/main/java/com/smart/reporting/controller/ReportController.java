@@ -2,6 +2,8 @@ package com.smart.reporting.controller;
 
 import com.smart.reporting.dto.EventCategoryResultRequest;
 import com.smart.reporting.dto.EventCategoryResultResponse;
+import com.smart.reporting.dto.LapResultResponse;
+import com.smart.reporting.dto.CategoryResultListWrapper;
 import com.smart.reporting.dto.OverallRankRequest;
 import com.smart.reporting.dto.GenderRankRequest;
 import com.smart.reporting.entity.TEvent;
@@ -25,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -91,6 +94,21 @@ public class ReportController {
             dto.setRank1Cat(result.getRank1cat());
             dto.setRank1Mix(result.getRank1mix());
             dto.setRank1Tot(result.getRank1tot());
+            dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+            dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+            dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : null);
+            dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : null);
+            dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : null);
+            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
+            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
+            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
+            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()) : null);
+            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()) : null);
+            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()) : null);
+            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()) : null);
+            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()) : null);
+            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()) : null);
+            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()) : null);
             dto.setNetTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()));
             dto.setOfficialTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()));
             dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
@@ -201,11 +219,11 @@ public class ReportController {
             dto.setRank1Cat(result.getRank1cat());
             dto.setRank1Mix(result.getRank1mix());
             dto.setRank1Tot(result.getRank1tot());
-            dto.setNetTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()));
-            dto.setOfficialTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()));
-            dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
-            dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
-            dto.setTimeGun(TimeFormatUtil.intToTimeString(result.getTimegun()));
+            dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+            dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+            dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : null);
+            dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : null);
+            dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : null);
             dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
             dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
             dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
@@ -225,42 +243,94 @@ public class ReportController {
     }
 
     @PostMapping("/event/category")
-    public List<EventCategoryResultResponse> getResultsByEventAndCategory(@RequestBody EventCategoryResultRequest request) {
+    public CategoryResultListWrapper getResultsByEventAndCategory(@RequestBody EventCategoryResultRequest request) {
         List<TResults> results = raceResultService.getResultsByEventAndCat(request.getEventId(), request.getCategory());
         List<TEventCat> eventcat= eventCatService.getByEventIdAndCat(request.getEventId(), request.getCategory());
-        List<EventCategoryResultResponse> responseList = results.stream().map(result -> {
-            EventCategoryResultResponse dto = new EventCategoryResultResponse();
-            dto.setCplist(eventcat.get(0).getCplist());
-            dto.setName(result.getName());
-            dto.setBib(result.getBib());
-            dto.setCategory(result.getCategory());
-            dto.setEventId(result.getEventId());
-            dto.setEventName(eventcat.get(0).getCategory());
-            dto.setCat(result.getCat());
-            dto.setRank1Cat(result.getRank1cat());
-            dto.setRank1Mix(result.getRank1mix());
-            dto.setRank1Tot(result.getRank1tot());
-            dto.setNetTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()));
-            dto.setOfficialTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()));
-            dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
-            dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
-            dto.setTimeGun(TimeFormatUtil.intToTimeString(result.getTimegun()));
-            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
-            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
-            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
-            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()) : null);
-            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()) : null);
-            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()) : null);
-            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()) : null);
-            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()) : null);
-            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()) : null);
-            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()) : null);
-            // Add any additional fields as needed
-            return dto;
-        }).collect(Collectors.toList());
+        String mode = eventcat.get(0).getRacemode();
 
-        // You can add additional processing or logging here if needed
-        return responseList;
+        if ("LAP".equalsIgnoreCase(mode)) {
+            // Return LAP mode response
+            List<LapResultResponse> lapResponseList = results.stream().map(result -> {
+                LapResultResponse dto = new LapResultResponse();
+                dto.setName(result.getName());
+                dto.setBib(result.getBib());
+                dto.setCategory(result.getCategory());
+                dto.setEventId(result.getEventId());
+                dto.setEventName(eventcat.get(0).getCategory());
+                dto.setCat(result.getCat());
+                // Only set rank1Cat if it's greater than 0
+                if (result.getRank1cat() != null && result.getRank1cat() > 0) {
+                    dto.setRank1Cat(result.getRank1cat());
+                }
+                dto.setBonusLap(result.getBonuslap());
+                dto.setDqLap(result.getDqLap());
+                dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+                dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "0");
+                dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "0");
+                dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : "0");
+                
+                // Calculate lap count dynamically based on highest lap number with data
+                Integer maxLap = null;
+                
+                // Set lap time values (time1 to time50) using reflection
+                for (int i = 1; i <= 50; i++) {
+                    try {
+                        Method getter = TResults.class.getMethod("getTime" + i);
+                        Integer timeValue = (Integer) getter.invoke(result);
+                        if (timeValue != null) {
+                            dto.setLapTime(i, TimeFormatUtil.intToTimeString(timeValue));
+                            maxLap = i; // Track the highest lap number with data
+                        }
+                    } catch (Exception e) {
+                        // Ignore if getter doesn't exist or fails
+                    }
+                }
+                
+                // Set calculated lap count
+                dto.setLap(maxLap);
+                
+                return dto;
+            }).collect(Collectors.toList());
+            
+            return new CategoryResultListWrapper("LAP", lapResponseList);
+        } else {
+            // Return NORMAL mode response (default)
+            List<EventCategoryResultResponse> responseList = results.stream().map(result -> {
+                EventCategoryResultResponse dto = new EventCategoryResultResponse();
+                dto.setCplist(eventcat.get(0).getCplist());
+                dto.setName(result.getName());
+                dto.setBib(result.getBib());
+                dto.setCategory(result.getCategory());
+                dto.setEventId(result.getEventId());
+                dto.setEventName(eventcat.get(0).getCategory());
+                dto.setCat(result.getCat());
+                // Only set rank1Cat if it's greater than 0
+                if (result.getRank1cat() != null && result.getRank1cat() > 0) {
+                    dto.setRank1Cat(result.getRank1cat());
+                }
+                dto.setRank1Mix(result.getRank1mix());
+                dto.setRank1Tot(result.getRank1tot());
+                dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+                dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "0");
+                dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "0");
+                dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : "0");
+                dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
+                dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
+                dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
+                dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()) : null);
+                dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()) : null);
+                dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()) : null);
+                dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()) : null);
+                dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()) : null);
+                dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()) : null);
+                dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()) : null);
+                return dto;
+            }).collect(Collectors.toList());
+
+            return new CategoryResultListWrapper("NORMAL", responseList);
+        }
     }
 
     @PostMapping("/event/category/top/xlsx")

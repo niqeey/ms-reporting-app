@@ -24,6 +24,7 @@ public class LeaderboardResponse {
     private String timeCP10;
     private String cplist;
     private String sex;
+    private Integer lap;
 
     // Constructors
     public LeaderboardResponse() {
@@ -212,5 +213,13 @@ public class LeaderboardResponse {
 
     public void setSex(String sex) {
         this.sex = sex;
+    }
+
+    public Integer getLap() {
+        return lap;
+    }
+
+    public void setLap(Integer lap) {
+        this.lap = lap;
     }
 }

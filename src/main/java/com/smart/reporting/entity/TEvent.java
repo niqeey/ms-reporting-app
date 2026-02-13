@@ -30,6 +30,9 @@ public class TEvent {
     @Column(name = "weather" , length = 100)
     private String weather;
 
+    @Column(name = "archived")
+    private Boolean archived = false;
+
     // Constructors
     public TEvent() {}
 
@@ -40,5 +43,6 @@ public class TEvent {
         this.location = location;
         this.country = country;
         this.weather = weather;
+        this.archived = false;
     }
 }

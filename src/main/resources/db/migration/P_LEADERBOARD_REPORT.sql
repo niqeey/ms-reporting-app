@@ -31,6 +31,7 @@ BEGIN
         r.timecp9,
         r.timecp10,
         r.sex,
+        r.lap,
         ec.cplist
     FROM t_results r
     LEFT JOIN t_event_cat ec ON r.eventid = ec.event_id AND r.cat = ec.cat

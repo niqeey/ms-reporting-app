@@ -66,18 +66,61 @@ public class OrgEventService {
             e.name, 
             e.event_dt AS eventDt, 
             e.location, 
-            e.country
+            e.country,
+            e.archived
         FROM t_event e
         JOIN t_org_event oe ON e.id = oe.event_id
         JOIN t_org o ON o.id = oe.org_id
         WHERE o.id = ?
-        order by e.event_dt
+        order by e.event_dt DESC
         """;
     List<TEvent> events = jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(TEvent.class), orgId);
     logger.info("sql: {}", sql);
     logger.info("Found {} events for Org ID: {}", events.size(), orgId);
     return events;
 }
+
+    public List<TEvent> getUpcomingEventsByOrgId(String orgId) {
+        logger.info("Fetching upcoming events for Org ID: {}", orgId);
+        String sql = """
+            SELECT 
+                e.id, 
+                e.name, 
+                e.event_dt AS eventDt, 
+                e.location, 
+                e.country,
+                e.archived
+            FROM t_event e
+            JOIN t_org_event oe ON e.id = oe.event_id
+            JOIN t_org o ON o.id = oe.org_id
+            WHERE o.id = ? AND (e.archived IS NULL OR e.archived = 0)
+            ORDER BY e.event_dt DESC
+            """;
+        List<TEvent> events = jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(TEvent.class), orgId);
+        logger.info("Found {} upcoming events for Org ID: {}", events.size(), orgId);
+        return events;
+    }
+
+    public List<TEvent> getArchivedEventsByOrgId(String orgId) {
+        logger.info("Fetching archived events for Org ID: {}", orgId);
+        String sql = """
+            SELECT 
+                e.id, 
+                e.name, 
+                e.event_dt AS eventDt, 
+                e.location, 
+                e.country,
+                e.archived
+            FROM t_event e
+            JOIN t_org_event oe ON e.id = oe.event_id
+            JOIN t_org o ON o.id = oe.org_id
+            WHERE o.id = ? AND e.archived = 1
+            ORDER BY e.event_dt DESC
+            """;
+        List<TEvent> events = jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(TEvent.class), orgId);
+        logger.info("Found {} archived events for Org ID: {}", events.size(), orgId);
+        return events;
+    }
     
 
     

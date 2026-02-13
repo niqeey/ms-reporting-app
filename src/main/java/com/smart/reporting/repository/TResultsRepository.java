@@ -39,6 +39,9 @@ public interface TResultsRepository extends JpaRepository<TResults, Integer> {
     @Query("SELECT COALESCE(MAX(r.pid), 0) FROM TResults r")
     Integer findMaxPid();
 
+    @Query("SELECT r FROM TResults r WHERE r.eventId = :eventId AND r.cat = :cat AND r.time1 > 0 ORDER BY r.lap DESC, (r.timefinish - r.timestart) ASC")
+    List<TResults> findByEventIdAndCatWithLapModeOrderByLapAndNetTime(String eventId, String cat);
+
     @Transactional
     @Modifying
     @Query("UPDATE TResults r SET r.timegun = :timegun WHERE r.eventId = :eventId AND r.cat = :cat")

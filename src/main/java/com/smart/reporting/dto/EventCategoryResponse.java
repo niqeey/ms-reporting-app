@@ -15,6 +15,7 @@ public class EventCategoryResponse {
     private int toplist;
     private int topprize;
     private int islive;
+    private Boolean archived;
 
 
     public BigDecimal getDistance() {
@@ -83,6 +84,14 @@ public class EventCategoryResponse {
         this.isresult = isresult;
     }
 
+    public Boolean getArchived() {
+        return archived;
+    }
+
+    public void setArchived(Boolean archived) {
+        this.archived = archived;
+    }
+
     public EventCategoryResponse() {}
 
     public EventCategoryResponse(
@@ -98,7 +107,8 @@ public class EventCategoryResponse {
         int toplist,
         int topprize,
         int islive,
-        int isresult
+        int isresult,
+        Boolean archived
     ) {
         this.eventId = eventId;
         this.eventName = eventName;
@@ -113,6 +123,7 @@ public class EventCategoryResponse {
         this.topprize = topprize;
         this.islive = islive;
         this.isresult = isresult;
+        this.archived = archived;
     }
 
     public String getEventId() {

@@ -55,7 +55,8 @@ public class RaceService {
                         cat.getTop() != null ? cat.getTop() : 0,
                         cat.getTopPrize() != null ? cat.getTopPrize() : 0,
                         cat.getIsLive() != null ? cat.getIsLive() : 0,
-                        cat.getIsResult() != null ? cat.getIsResult() : 0
+                cat.getIsResult() != null ? cat.getIsResult() : 0,
+                null
                 ))
                 .collect(Collectors.toList());
     }
@@ -182,9 +183,20 @@ public class RaceService {
                 String sex = columns.length > 4 ? columns[4].trim().replace("\"", "") : null; // Optional sex field
                 String country = columns.length > 5 ? columns[5].trim().replace("\"", "") : null; // Optional country field
                 String nric = columns.length > 6 ? columns[6].trim().replace("\"", "") : null; // Optional NRIC field
-                
+
+                if (csvPid.isEmpty()) {
+                    continue; // Skip rows without a PID
+                }
+
+                int parsedPid;
+                try {
+                    parsedPid = Integer.parseInt(csvPid);
+                } catch (NumberFormatException ex) {
+                    continue; // Skip rows with invalid PID values
+                }
+
                 // Check if this is a deletion request (pid = 0)
-                boolean isDeletion = "0".equals(csvPid);
+                boolean isDeletion = parsedPid == 0;
                 
                 // Check if participant exists (match by eventId + cat + bib)
                 Optional<TResults> existingOpt = tResultsRepository.findByEventIdAndCatAndBib(eventId, cat, bib);
@@ -239,11 +251,8 @@ public class RaceService {
                 } else {
                     // Only insert if not a deletion request
                     if (!isDeletion) {
-                        Integer maxPid = tResultsRepository.findMaxPid();
-                        Integer newPid = (maxPid != null ? maxPid : 0) + 1;
-                        
                         TResults newResult = new TResults();
-                        newResult.setPid(newPid);
+                        newResult.setPid(parsedPid);
                         newResult.setEventId(eventId);
                         newResult.setCat(cat);
                         newResult.setCategory(categoryName);

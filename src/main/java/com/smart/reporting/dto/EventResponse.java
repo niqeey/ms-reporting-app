@@ -8,6 +8,7 @@ public class EventResponse {
     private Date eventDt;
     private String location;
     private String country;
+    private Boolean archived;
 
     // Getters and setters
     public String getId() { return id; }
@@ -25,6 +26,9 @@ public class EventResponse {
     public String getCountry() { return country; }
     public void setCountry(String country) { this.country = country; }
 
+    public Boolean getArchived() { return archived; }
+    public void setArchived(Boolean archived) { this.archived = archived; }
+
 
     // Constructor
     public EventResponse() {}
@@ -35,5 +39,15 @@ public class EventResponse {
         this.eventDt = eventDt;
         this.location = location;
         this.country = country;
+        this.archived = false;
+    }
+
+    public EventResponse(String id, String name, Date eventDt, String location, String country, Boolean archived) {
+        this.id = id;
+        this.name = name;
+        this.eventDt = eventDt;
+        this.location = location;
+        this.country = country;
+        this.archived = archived;
     }
 }
