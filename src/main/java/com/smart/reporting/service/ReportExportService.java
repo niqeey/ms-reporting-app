@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ReportExportService {
@@ -34,6 +35,12 @@ public class ReportExportService {
 
     @Autowired
     private TOrgRepository orgRepository;
+
+    @Autowired
+    private RaceResultService raceResultService;
+
+    @Autowired
+    private EventCatService eventCatService;
 
     public byte[] generateResultsXlsx(
             List<TResults> results,
@@ -1018,7 +1025,283 @@ public class ReportExportService {
         Optional<TOrg> orgs = orgRepository.findById(orgId);
         TOrg org = orgs.orElse(null);
         
-        List<EventCategoryResultResponse> results = statisticReportService.getOverallRankResults(eventId, distance);
+        // Get results from database
+        List<TResults> dbResults = raceResultService.getResultsByEventAndDistanceOrderByRank1tot(eventId, distance);
+        
+        // Determine mode
+        String mode = "TIME";
+        List<TEventCat> eventcat = null;
+        if (dbResults != null && !dbResults.isEmpty()) {
+            String cat = dbResults.get(0).getCat();
+            eventcat = eventCatService.getByEventIdAndCat(eventId, cat);
+            if (eventcat != null && !eventcat.isEmpty()) {
+                mode = eventcat.get(0).getRacemode();
+            }
+        }
+
+        if ("LAP".equalsIgnoreCase(mode)) {
+            // LAP mode Excel generation
+            return generateOverallRankLapExcel(dbResults, eventcat, event, org, distance);
+        } else {
+            // TIME mode Excel generation (original logic)
+            return generateOverallRankTimeExcel(dbResults, eventcat, event, org, distance);
+        }
+    }
+
+    private byte[] generateOverallRankLapExcel(List<TResults> results, List<TEventCat> eventcat, TEvent event, TOrg org, String distance) throws Exception {
+        String cplist = eventcat.get(0).getCplist();
+        
+        // Parse cplist for LAP mode (halflap, fulllap, numberOfLaps, totalDistance)
+        boolean includeHalfLap = false;
+        if (cplist != null && !cplist.isEmpty()) {
+            String[] cplistParts = cplist.split(",");
+            if (cplistParts.length > 0) {
+                try {
+                    int halflap = Integer.parseInt(cplistParts[0].trim());
+                    includeHalfLap = halflap > 0;
+                } catch (NumberFormatException e) {
+                    // Default to false
+                }
+            }
+        }
+
+        // Calculate maxLapCount as the maximum displayable lap (lap - 1)
+        int maxLapCount = 0;
+        for (TResults result : results) {
+            if (result.getLap() != null && result.getLap() > 0) {
+                int displayLap = result.getLap() - 1;  // lap - 1
+                if (displayLap > maxLapCount) {
+                    maxLapCount = displayLap;
+                }
+            }
+        }
+
+        // Sort by rank1tot, rank1mix, rank1cat, lap (zeros last)
+        List<TResults> sortedResults = results.stream()
+            .sorted((a, b) -> {
+                // Non-zero ranks first
+                Integer aRank1tot = a.getRank1tot() != null && a.getRank1tot() > 0 ? a.getRank1tot() : Integer.MAX_VALUE;
+                Integer bRank1tot = b.getRank1tot() != null && b.getRank1tot() > 0 ? b.getRank1tot() : Integer.MAX_VALUE;
+                if (!aRank1tot.equals(bRank1tot)) return aRank1tot.compareTo(bRank1tot);
+                
+                Integer aRank1mix = a.getRank1mix() != null && a.getRank1mix() > 0 ? a.getRank1mix() : Integer.MAX_VALUE;
+                Integer bRank1mix = b.getRank1mix() != null && b.getRank1mix() > 0 ? b.getRank1mix() : Integer.MAX_VALUE;
+                if (!aRank1mix.equals(bRank1mix)) return aRank1mix.compareTo(bRank1mix);
+                
+                Integer aRank1cat = a.getRank1cat() != null && a.getRank1cat() > 0 ? a.getRank1cat() : Integer.MAX_VALUE;
+                Integer bRank1cat = b.getRank1cat() != null && b.getRank1cat() > 0 ? b.getRank1cat() : Integer.MAX_VALUE;
+                if (!aRank1cat.equals(bRank1cat)) return aRank1cat.compareTo(bRank1cat);
+                
+                Integer aLap = a.getLap() != null && a.getLap() > 0 ? a.getLap() : Integer.MAX_VALUE;
+                Integer bLap = b.getLap() != null && b.getLap() > 0 ? b.getLap() : Integer.MAX_VALUE;
+                return aLap.compareTo(bLap);
+            })
+            .collect(Collectors.toList());
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("OverallRank");
+            
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle headerStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+            
+            int rowIdx = 0;
+            rowIdx = addEventHeader(sheet, event, org, "Overall Rank - " + distance, rowIdx, r1Style, headingStyle);
+            rowIdx++; // Empty row
+            
+            // Build headers for LAP mode
+            List<String> headers = new java.util.ArrayList<>();
+            headers.add("Overall Rank");
+            headers.add("Gender Rank");
+            headers.add("Category Rank");
+            headers.add("Lap");
+            headers.add("Bib");
+            headers.add("Name");
+            headers.add("Category");
+            headers.add("TimeStart");
+            headers.add("Official Time");
+            headers.add("Net Time");
+            
+            if (includeHalfLap) {
+                headers.add("1/2 Lap");
+            }
+            // Create headers for each displayable lap (1 to maxLapCount)
+            for (int i = 1; i <= maxLapCount; i++) {
+                headers.add("Lap " + i);
+            }
+            
+            headers.add("TimeFinish");
+
+            Row headerRow = sheet.createRow(rowIdx++);
+            for (int i = 0; i < headers.size(); i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers.get(i));
+                cell.setCellStyle(headerStyle);
+            }
+            
+            // Add data rows
+            for (TResults result : sortedResults) {
+                boolean alternate = (rowIdx % 2 == 0);
+                CellStyle rowStyle = alternate ? dataStyleAlt : dataStyleDefault;
+                Row row = sheet.createRow(rowIdx++);
+                
+                int colIdx = 0;
+
+                // Overall Rank
+                Cell c0 = row.createCell(colIdx++);
+                c0.setCellValue(result.getRank1tot() != null ? result.getRank1tot() : 0);
+                c0.setCellStyle(rowStyle);
+
+                // Gender Rank
+                Cell c1 = row.createCell(colIdx++);
+                c1.setCellValue(result.getRank1mix() != null ? result.getRank1mix() : 0);
+                c1.setCellStyle(rowStyle);
+
+                // Category Rank
+                Cell c2 = row.createCell(colIdx++);
+                c2.setCellValue(result.getRank1cat() != null ? result.getRank1cat() : 0);
+                c2.setCellStyle(rowStyle);
+
+                // Lap
+                Cell c3 = row.createCell(colIdx++);
+                c3.setCellValue(result.getLap() != null ? result.getLap() : 0);
+                c3.setCellStyle(rowStyle);
+
+                // Bib
+                Cell c4 = row.createCell(colIdx++);
+                c4.setCellValue(result.getBib() != null ? result.getBib() : "");
+                c4.setCellStyle(rowStyle);
+
+                // Name
+                Cell c5 = row.createCell(colIdx++);
+                c5.setCellValue(result.getName() != null ? result.getName() : "");
+                c5.setCellStyle(rowStyle);
+
+                // Category
+                Cell c6 = row.createCell(colIdx++);
+                c6.setCellValue(result.getCategory() != null ? result.getCategory() : "");
+                c6.setCellStyle(rowStyle);
+
+                // TimeStart
+                Cell c7 = row.createCell(colIdx++);
+                c7.setCellValue(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "");
+                c7.setCellStyle(rowStyle);
+
+                // Official Time (timefinish - timegun)
+                Cell c8 = row.createCell(colIdx++);
+                String officialTime = "";
+                if (result.getTimefinish() != null && result.getTimegun() != null) {
+                    officialTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimegun());
+                }
+                c8.setCellValue(officialTime);
+                c8.setCellStyle(rowStyle);
+
+                // Net Time (timefinish - timestart)
+                Cell c9 = row.createCell(colIdx++);
+                String netTime = "";
+                if (result.getTimefinish() != null && result.getTimestart() != null) {
+                    netTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimestart());
+                }
+                c9.setCellValue(netTime);
+                c9.setCellStyle(rowStyle);
+
+                // Lap times (display from time(startIndex) to time(lap-1))
+                Integer lapCount = result.getLap();
+                int displayMaxLap = (lapCount != null && lapCount > 0) ? lapCount - 1 : 0;
+                int startIndex = includeHalfLap ? 0 : 1;
+                
+                // Add time0 if needed
+                if (includeHalfLap) {
+                    try {
+                        Method getter = TResults.class.getMethod("getTime0");
+                        Integer timeValue = (Integer) getter.invoke(result);
+                        Cell lapCell = row.createCell(colIdx++);
+                        if (timeValue != null) {
+                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
+                        } else {
+                            lapCell.setCellValue("");
+                        }
+                        lapCell.setCellStyle(rowStyle);
+                    } catch (Exception e) {
+                        Cell lapCell = row.createCell(colIdx++);
+                        lapCell.setCellValue("");
+                        lapCell.setCellStyle(rowStyle);
+                    }
+                }
+                
+                // Add lap times 1 to maxLapCount
+                for (int i = 1; i <= maxLapCount; i++) {
+                    try {
+                        Method getter = TResults.class.getMethod("getTime" + i);
+                        Integer timeValue = (Integer) getter.invoke(result);
+                        Cell lapCell = row.createCell(colIdx++);
+                        // Only display if this lap was completed (i <= displayMaxLap)
+                        if (i <= displayMaxLap && timeValue != null) {
+                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
+                        } else {
+                            lapCell.setCellValue("");
+                        }
+                        lapCell.setCellStyle(rowStyle);
+                    } catch (Exception e) {
+                        Cell lapCell = row.createCell(colIdx++);
+                        lapCell.setCellValue("");
+                        lapCell.setCellStyle(rowStyle);
+                    }
+                }
+
+                // TimeFinish
+                Cell finishCell = row.createCell(colIdx++);
+                finishCell.setCellValue(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "");
+                finishCell.setCellStyle(rowStyle);
+            }
+
+            addFooter(sheet, rowIdx, headers.size() - 1, org, footerStyle);
+
+            // Auto-size columns
+            int totalColumns = headers.size();
+            for (int i = 0; i < totalColumns; i++) {
+                sheet.autoSizeColumn(i);
+                sheet.setColumnWidth(i, Math.max(sheet.getColumnWidth(i), 120 * 36));
+            }
+            
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private byte[] generateOverallRankTimeExcel(List<TResults> dbResults, List<TEventCat> eventcat, TEvent event, TOrg org, String distance) throws Exception {
+        // Convert to EventCategoryResultResponse
+        final String cplist = (eventcat != null && !eventcat.isEmpty()) ? eventcat.get(0).getCplist() : null;
+        List<EventCategoryResultResponse> results = dbResults.stream().map(result -> {
+            EventCategoryResultResponse dto = new EventCategoryResultResponse();
+            dto.setCplist(cplist);
+            dto.setName(result.getName());
+            dto.setBib(result.getBib());
+            dto.setCategory(result.getCategory());
+            dto.setEventId(result.getEventId());
+            dto.setCat(result.getCat());
+            dto.setRank1Cat(result.getRank1cat());
+            dto.setRank1Mix(result.getRank1mix());
+            dto.setRank1Tot(result.getRank1tot());
+            dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+            dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+            dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : null);
+            dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : null);
+            dto.setTimeCP1(result.getTime1() != null ? TimeFormatUtil.intToTimeString(result.getTime1()) : null);
+            dto.setTimeCP2(result.getTime2() != null ? TimeFormatUtil.intToTimeString(result.getTime2()) : null);
+            dto.setTimeCP3(result.getTime3() != null ? TimeFormatUtil.intToTimeString(result.getTime3()) : null);
+            dto.setTimeCP4(result.getTime4() != null ? TimeFormatUtil.intToTimeString(result.getTime4()) : null);
+            dto.setTimeCP5(result.getTime5() != null ? TimeFormatUtil.intToTimeString(result.getTime5()) : null);
+            dto.setTimeCP6(result.getTime6() != null ? TimeFormatUtil.intToTimeString(result.getTime6()) : null);
+            dto.setTimeCP7(result.getTime7() != null ? TimeFormatUtil.intToTimeString(result.getTime7()) : null);
+            dto.setTimeCP8(result.getTime8() != null ? TimeFormatUtil.intToTimeString(result.getTime8()) : null);
+            dto.setTimeCP9(result.getTime9() != null ? TimeFormatUtil.intToTimeString(result.getTime9()) : null);
+            dto.setTimeCP10(result.getTime10() != null ? TimeFormatUtil.intToTimeString(result.getTime10()) : null);
+            return dto;
+        }).collect(Collectors.toList());
         
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("OverallRank");
@@ -1044,11 +1327,6 @@ public class ReportExportService {
             headers.add("Official Time");
             headers.add("Net Time");
             headers.add("TimeStart");
-
-            String cplist = null;
-            if (!results.isEmpty()) {
-                cplist = results.get(0).getCplist();
-            }
 
             if (cplist != null && !cplist.isEmpty()) {
                 String[] cps = cplist.split(",");
@@ -1172,7 +1450,273 @@ public class ReportExportService {
         Optional<TOrg> orgs = orgRepository.findById(orgId);
         TOrg org = orgs.orElse(null);
         
-        List<EventCategoryResultResponse> results = statisticReportService.getGenderRankResults(eventId, distance, gender);
+        // Get results from database
+        List<TResults> dbResults = raceResultService.getResultsByEventAndDistanceAndGenderOrderByRank1mix(eventId, distance, gender);
+        
+        // Determine mode
+        String mode = "TIME";
+        List<TEventCat> eventcat = null;
+        if (dbResults != null && !dbResults.isEmpty()) {
+            String cat = dbResults.get(0).getCat();
+            eventcat = eventCatService.getByEventIdAndCat(eventId, cat);
+            if (eventcat != null && !eventcat.isEmpty()) {
+                mode = eventcat.get(0).getRacemode();
+            }
+        }
+
+        if ("LAP".equalsIgnoreCase(mode)) {
+            // LAP mode Excel generation
+            return generateGenderRankLapExcel(dbResults, eventcat, event, org, distance, gender);
+        } else {
+            // TIME mode Excel generation (original logic)
+            return generateGenderRankTimeExcel(dbResults, eventcat, event, org, distance, gender);
+        }
+    }
+
+    private byte[] generateGenderRankLapExcel(List<TResults> results, List<TEventCat> eventcat, TEvent event, TOrg org, String distance, String gender) throws Exception {
+        String cplist = eventcat.get(0).getCplist();
+        
+        // Parse cplist for LAP mode (halflap, fulllap, numberOfLaps, totalDistance)
+        boolean includeHalfLap = false;
+        if (cplist != null && !cplist.isEmpty()) {
+            String[] cplistParts = cplist.split(",");
+            if (cplistParts.length > 0) {
+                try {
+                    int halflap = Integer.parseInt(cplistParts[0].trim());
+                    includeHalfLap = halflap > 0;
+                } catch (NumberFormatException e) {
+                    // Default to false
+                }
+            }
+        }
+
+        // Calculate maxLapCount as the maximum displayable lap (lap - 1)
+        int maxLapCount = 0;
+        for (TResults result : results) {
+            if (result.getLap() != null && result.getLap() > 0) {
+                int displayLap = result.getLap() - 1;  // lap - 1
+                if (displayLap > maxLapCount) {
+                    maxLapCount = displayLap;
+                }
+            }
+        }
+
+        // Sort by rank1mix, rank1cat, lap (zeros last)
+        List<TResults> sortedResults = results.stream()
+            .sorted((a, b) -> {
+                // Non-zero ranks first
+                Integer aRank1mix = a.getRank1mix() != null && a.getRank1mix() > 0 ? a.getRank1mix() : Integer.MAX_VALUE;
+                Integer bRank1mix = b.getRank1mix() != null && b.getRank1mix() > 0 ? b.getRank1mix() : Integer.MAX_VALUE;
+                if (!aRank1mix.equals(bRank1mix)) return aRank1mix.compareTo(bRank1mix);
+                
+                Integer aRank1cat = a.getRank1cat() != null && a.getRank1cat() > 0 ? a.getRank1cat() : Integer.MAX_VALUE;
+                Integer bRank1cat = b.getRank1cat() != null && b.getRank1cat() > 0 ? b.getRank1cat() : Integer.MAX_VALUE;
+                if (!aRank1cat.equals(bRank1cat)) return aRank1cat.compareTo(bRank1cat);
+                
+                Integer aLap = a.getLap() != null && a.getLap() > 0 ? a.getLap() : Integer.MAX_VALUE;
+                Integer bLap = b.getLap() != null && b.getLap() > 0 ? b.getLap() : Integer.MAX_VALUE;
+                return aLap.compareTo(bLap);
+            })
+            .collect(Collectors.toList());
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("GenderRank");
+            
+            CellStyle r1Style = createTitleStyle(workbook);
+            CellStyle headingStyle = createHeadingStyle(workbook);
+            CellStyle headerStyle = createFieldHeaderStyle(workbook);
+            CellStyle footerStyle = createFooterStyle(workbook);
+            CellStyle dataStyleDefault = createDataStyle(workbook, false);
+            CellStyle dataStyleAlt = createDataStyle(workbook, true);
+            
+            int rowIdx = 0;
+            rowIdx = addEventHeader(sheet, event, org, "Gender Rank - " + distance + " (" + gender + ")", rowIdx, r1Style, headingStyle);
+            rowIdx++; // Empty row
+            
+            // Build headers for LAP mode
+            List<String> headers = new java.util.ArrayList<>();
+            headers.add("Rank");
+            headers.add("Category Rank");
+            headers.add("Lap");
+            headers.add("Bib");
+            headers.add("Name");
+            headers.add("Category");
+            headers.add("TimeStart");
+            headers.add("Official Time");
+            headers.add("Net Time");
+            
+            if (includeHalfLap) {
+                headers.add("1/2 Lap");
+            }
+            // Create headers for each displayable lap (1 to maxLapCount)
+            for (int i = 1; i <= maxLapCount; i++) {
+                headers.add("Lap " + i);
+            }
+            
+            headers.add("TimeFinish");
+
+            Row headerRow = sheet.createRow(rowIdx++);
+            for (int i = 0; i < headers.size(); i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers.get(i));
+                cell.setCellStyle(headerStyle);
+            }
+            
+            // Add data rows
+            for (TResults result : sortedResults) {
+                boolean alternate = (rowIdx % 2 == 0);
+                CellStyle rowStyle = alternate ? dataStyleAlt : dataStyleDefault;
+                Row row = sheet.createRow(rowIdx++);
+                
+                int colIdx = 0;
+
+                // Rank (Gender Rank)
+                Cell c0 = row.createCell(colIdx++);
+                c0.setCellValue(result.getRank1mix() != null ? result.getRank1mix() : 0);
+                c0.setCellStyle(rowStyle);
+
+                // Category Rank
+                Cell c1 = row.createCell(colIdx++);
+                c1.setCellValue(result.getRank1cat() != null ? result.getRank1cat() : 0);
+                c1.setCellStyle(rowStyle);
+
+                // Lap
+                Cell c2 = row.createCell(colIdx++);
+                c2.setCellValue(result.getLap() != null ? result.getLap() : 0);
+                c2.setCellStyle(rowStyle);
+
+                // Bib
+                Cell c3 = row.createCell(colIdx++);
+                c3.setCellValue(result.getBib() != null ? result.getBib() : "");
+                c3.setCellStyle(rowStyle);
+
+                // Name
+                Cell c4 = row.createCell(colIdx++);
+                c4.setCellValue(result.getName() != null ? result.getName() : "");
+                c4.setCellStyle(rowStyle);
+
+                // Category
+                Cell c5 = row.createCell(colIdx++);
+                c5.setCellValue(result.getCategory() != null ? result.getCategory() : "");
+                c5.setCellStyle(rowStyle);
+
+                // TimeStart
+                Cell c6 = row.createCell(colIdx++);
+                c6.setCellValue(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "");
+                c6.setCellStyle(rowStyle);
+
+                // Official Time (timefinish - timegun)
+                Cell c7 = row.createCell(colIdx++);
+                String officialTime = "";
+                if (result.getTimefinish() != null && result.getTimegun() != null) {
+                    officialTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimegun());
+                }
+                c7.setCellValue(officialTime);
+                c7.setCellStyle(rowStyle);
+
+                // Net Time (timefinish - timestart)
+                Cell c8 = row.createCell(colIdx++);
+                String netTime = "";
+                if (result.getTimefinish() != null && result.getTimestart() != null) {
+                    netTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimestart());
+                }
+                c8.setCellValue(netTime);
+                c8.setCellStyle(rowStyle);
+
+                // Lap times (display from time(startIndex) to time(lap-1))
+                Integer lapCount = result.getLap();
+                int displayMaxLap = (lapCount != null && lapCount > 0) ? lapCount - 1 : 0;
+                int startIndex = includeHalfLap ? 0 : 1;
+                
+                // Add time0 if needed
+                if (includeHalfLap) {
+                    try {
+                        Method getter = TResults.class.getMethod("getTime0");
+                        Integer timeValue = (Integer) getter.invoke(result);
+                        Cell lapCell = row.createCell(colIdx++);
+                        if (timeValue != null) {
+                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
+                        } else {
+                            lapCell.setCellValue("");
+                        }
+                        lapCell.setCellStyle(rowStyle);
+                    } catch (Exception e) {
+                        Cell lapCell = row.createCell(colIdx++);
+                        lapCell.setCellValue("");
+                        lapCell.setCellStyle(rowStyle);
+                    }
+                }
+                
+                // Add lap times 1 to maxLapCount
+                for (int i = 1; i <= maxLapCount; i++) {
+                    try {
+                        Method getter = TResults.class.getMethod("getTime" + i);
+                        Integer timeValue = (Integer) getter.invoke(result);
+                        Cell lapCell = row.createCell(colIdx++);
+                        // Only display if this lap was completed (i <= displayMaxLap)
+                        if (i <= displayMaxLap && timeValue != null) {
+                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
+                        } else {
+                            lapCell.setCellValue("");
+                        }
+                        lapCell.setCellStyle(rowStyle);
+                    } catch (Exception e) {
+                        Cell lapCell = row.createCell(colIdx++);
+                        lapCell.setCellValue("");
+                        lapCell.setCellStyle(rowStyle);
+                    }
+                }
+
+                // TimeFinish
+                Cell finishCell = row.createCell(colIdx++);
+                finishCell.setCellValue(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "");
+                finishCell.setCellStyle(rowStyle);
+            }
+
+            addFooter(sheet, rowIdx, headers.size() - 1, org, footerStyle);
+
+            // Auto-size columns
+            int totalColumns = headers.size();
+            for (int i = 0; i < totalColumns; i++) {
+                sheet.autoSizeColumn(i);
+                sheet.setColumnWidth(i, Math.max(sheet.getColumnWidth(i), 120 * 36));
+            }
+            
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private byte[] generateGenderRankTimeExcel(List<TResults> dbResults, List<TEventCat> eventcat, TEvent event, TOrg org, String distance, String gender) throws Exception {
+        // Convert to EventCategoryResultResponse
+        final String cplist = (eventcat != null && !eventcat.isEmpty()) ? eventcat.get(0).getCplist() : null;
+        List<EventCategoryResultResponse> results = dbResults.stream().map(result -> {
+            EventCategoryResultResponse dto = new EventCategoryResultResponse();
+            dto.setCplist(cplist);
+            dto.setName(result.getName());
+            dto.setBib(result.getBib());
+            dto.setCategory(result.getCategory());
+            dto.setEventId(result.getEventId());
+            dto.setCat(result.getCat());
+            dto.setRank1Cat(result.getRank1cat());
+            dto.setRank1Mix(result.getRank1mix());
+            dto.setRank1Tot(result.getRank1tot());
+            dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+            dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+            dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : null);
+            dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : null);
+            dto.setTimeCP1(result.getTime1() != null ? TimeFormatUtil.intToTimeString(result.getTime1()) : null);
+            dto.setTimeCP2(result.getTime2() != null ? TimeFormatUtil.intToTimeString(result.getTime2()) : null);
+            dto.setTimeCP3(result.getTime3() != null ? TimeFormatUtil.intToTimeString(result.getTime3()) : null);
+            dto.setTimeCP4(result.getTime4() != null ? TimeFormatUtil.intToTimeString(result.getTime4()) : null);
+            dto.setTimeCP5(result.getTime5() != null ? TimeFormatUtil.intToTimeString(result.getTime5()) : null);
+            dto.setTimeCP6(result.getTime6() != null ? TimeFormatUtil.intToTimeString(result.getTime6()) : null);
+            dto.setTimeCP7(result.getTime7() != null ? TimeFormatUtil.intToTimeString(result.getTime7()) : null);
+            dto.setTimeCP8(result.getTime8() != null ? TimeFormatUtil.intToTimeString(result.getTime8()) : null);
+            dto.setTimeCP9(result.getTime9() != null ? TimeFormatUtil.intToTimeString(result.getTime9()) : null);
+            dto.setTimeCP10(result.getTime10() != null ? TimeFormatUtil.intToTimeString(result.getTime10()) : null);
+            return dto;
+        }).collect(Collectors.toList());
         
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("GenderRank");
@@ -1197,11 +1741,6 @@ public class ReportExportService {
             headers.add("Official Time");
             headers.add("Net Time");
             headers.add("TimeStart");
-
-            String cplist = null;
-            if (!results.isEmpty()) {
-                cplist = results.get(0).getCplist();
-            }
 
             if (cplist != null && !cplist.isEmpty()) {
                 String[] cps = cplist.split(",");

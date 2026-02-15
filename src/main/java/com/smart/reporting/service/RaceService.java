@@ -202,13 +202,18 @@ public class RaceService {
                 Optional<TResults> existingOpt = tResultsRepository.findByEventIdAndCatAndBib(eventId, cat, bib);
                 
                 if (existingOpt.isPresent()) {
+                    TResults existing = existingOpt.get();
+                    // Validate that the found record belongs to this eventId
+                    if (!existing.getEventId().equals(eventId)) {
+                        throw new RuntimeException("Security check failed: Found record for bib " + bib + " does not belong to eventId " + eventId);
+                    }
+                    
                     if (isDeletion) {
                         // Delete existing record
-                        tResultsRepository.delete(existingOpt.get());
+                        tResultsRepository.delete(existing);
                         deleted++;
                     } else {
                         // Update existing record
-                        TResults existing = existingOpt.get();
                         existing.setChipCode(chipCode);
                         existing.setName(name);
                         existing.setCategory(categoryName);
@@ -306,6 +311,20 @@ public class RaceService {
     }
 
     public void updateParticipant(TResults participant) {
+        // Ensure participant has valid eventId before saving
+        if (participant == null || participant.getEventId() == null || participant.getEventId().isEmpty()) {
+            throw new RuntimeException("Participant must have a valid eventId");
+        }
+        tResultsRepository.save(participant);
+    }
+    
+    public void updateParticipantWithEventValidation(TResults participant, String eventId) {
+        if (participant == null || participant.getEventId() == null) {
+            throw new RuntimeException("Participant must have a valid eventId");
+        }
+        if (!participant.getEventId().equals(eventId)) {
+            throw new RuntimeException("Participant eventId mismatch: expected " + eventId + ", got " + participant.getEventId());
+        }
         tResultsRepository.save(participant);
     }
 
@@ -315,6 +334,14 @@ public class RaceService {
      * If halflap > 0: timestart = timegun
      */
     public int startRace(String eventId, String cat, Integer halflap) {
+        // Validate input
+        if (eventId == null || eventId.isEmpty()) {
+            throw new RuntimeException("eventId cannot be null or empty");
+        }
+        if (cat == null || cat.isEmpty()) {
+            throw new RuntimeException("cat cannot be null or empty");
+        }
+        
         List<TResults> results = tResultsRepository.findByEventIdAndCat(eventId, cat, org.springframework.data.domain.Pageable.unpaged());
         
         if (results == null || results.isEmpty()) {
@@ -323,6 +350,11 @@ public class RaceService {
         
         int updatedCount = 0;
         for (TResults result : results) {
+            // Additional validation: ensure record belongs to the requested eventId
+            if (!result.getEventId().equals(eventId)) {
+                throw new RuntimeException("Security check failed: Found result does not belong to eventId " + eventId);
+            }
+            
             if (halflap == 0) {
                 // If halflap = 0, set timestart = time0 (if time0 exists)
                 if (result.getTime0() != null && result.getTime0() > 0) {

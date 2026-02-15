@@ -69,104 +69,244 @@ public class ReportController {
     }
 
     @PostMapping("/event/overall-rank")
-    public List<EventCategoryResultResponse> getOverallRank(@RequestBody OverallRankRequest request) {
+    public CategoryResultListWrapper getOverallRank(@RequestBody OverallRankRequest request) {
         List<TResults> results = raceResultService.getResultsByEventAndDistanceOrderByRank1tot(request.getEventId(), request.getDistance());
         
-        // Get cplist from eventcat - use the cat from first result
-        String cplist = null;
+        // Get eventcat from first result to determine mode
+        String mode = "TIME";
+        List<TEventCat> eventcat = null;
         if (results != null && !results.isEmpty()) {
             String cat = results.get(0).getCat();
-            List<TEventCat> eventcat = eventCatService.getByEventIdAndCat(request.getEventId(), cat);
+            eventcat = eventCatService.getByEventIdAndCat(request.getEventId(), cat);
             if (eventcat != null && !eventcat.isEmpty()) {
-                cplist = eventcat.get(0).getCplist();
+                mode = eventcat.get(0).getRacemode();
             }
         }
-        
-        final String finalCplist = cplist;
-        List<EventCategoryResultResponse> responseList = results.stream().map(result -> {
-            EventCategoryResultResponse dto = new EventCategoryResultResponse();
-            dto.setCplist(finalCplist);
-            dto.setName(result.getName());
-            dto.setBib(result.getBib());
-            dto.setCategory(result.getCategory());
-            dto.setEventId(result.getEventId());
-            dto.setCat(result.getCat());
-            dto.setRank1Cat(result.getRank1cat());
-            dto.setRank1Mix(result.getRank1mix());
-            dto.setRank1Tot(result.getRank1tot());
-            dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
-            dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
-            dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : null);
-            dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : null);
-            dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : null);
-            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
-            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
-            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
-            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()) : null);
-            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()) : null);
-            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()) : null);
-            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()) : null);
-            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()) : null);
-            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()) : null);
-            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()) : null);
-            dto.setNetTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()));
-            dto.setOfficialTime(TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()));
-            dto.setTimeStart(TimeFormatUtil.intToTimeString(result.getTimestart()));
-            dto.setTimeFinish(TimeFormatUtil.intToTimeString(result.getTimefinish()));
-            dto.setTimeGun(TimeFormatUtil.intToTimeString(result.getTimegun()));
-            
-            // Only set TimeCP values that are in cplist
-            if (finalCplist != null && !finalCplist.isEmpty()) {
-                String[] cps = finalCplist.split(",");
-                for (String cp : cps) {
-                    String cpTrim = cp.trim();
-                    switch (cpTrim) {
-                        case "TimeCP1":
-                            dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()) : null);
-                            break;
-                        case "TimeCP2":
-                            dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()) : null);
-                            break;
-                        case "TimeCP3":
-                            dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()) : null);
-                            break;
-                        case "TimeCP4":
-                            dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()) : null);
-                            break;
-                        case "TimeCP5":
-                            dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()) : null);
-                            break;
-                        case "TimeCP6":
-                            dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()) : null);
-                            break;
-                        case "TimeCP7":
-                            dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()) : null);
-                            break;
-                        case "TimeCP8":
-                            dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()) : null);
-                            break;
-                        case "TimeCP9":
-                            dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()) : null);
-                            break;
-                        case "TimeCP10":
-                            dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()) : null);
-                            break;
+
+        if ("LAP".equalsIgnoreCase(mode)) {
+            // Return LAP mode response
+            final List<TEventCat> finalEventcat = eventcat;
+            List<LapResultResponse> lapResponseList = results.stream().map(result -> {
+                LapResultResponse dto = new LapResultResponse();
+                dto.setName(result.getName());
+                dto.setBib(result.getBib());
+                dto.setCategory(result.getCategory());
+                dto.setEventId(result.getEventId());
+                dto.setEventName(finalEventcat.get(0).getCategory());
+                dto.setCat(result.getCat());
+                // Set rank1Tot for overall ranking
+                if (result.getRank1tot() != null && result.getRank1tot() > 0) {
+                    dto.setRank1Cat(result.getRank1tot());
+                }
+                dto.setBonusLap(result.getBonuslap());
+                dto.setDqLap(result.getDqLap());
+                dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+                dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "0");
+                dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "0");
+                dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : "0");
+                dto.setLap(result.getLap());
+                dto.setCplist(finalEventcat.get(0).getCplist());
+                
+                // Set lap time values (time0 to time49) using reflection
+                // Check cplist to determine if halflap > 0
+                String cplist = finalEventcat.get(0).getCplist();
+                boolean includeTimeZero = false;
+                if (cplist != null && !cplist.isEmpty()) {
+                    String[] cplistParts = cplist.split(",");
+                    if (cplistParts.length > 0) {
+                        try {
+                            int halflap = Integer.parseInt(cplistParts[0].trim());
+                            includeTimeZero = halflap > 0;
+                        } catch (NumberFormatException e) {
+                            // If parsing fails, default to false
+                        }
                     }
                 }
-            }
+                int startIndex = includeTimeZero ? 0 : 1;
+                // Use lap-1 to determine max lap times to display
+                Integer lapCount = result.getLap();
+                int maxLap = (lapCount != null && lapCount > 0) ? lapCount - 1 : 0;
+                int maxIndex = Math.max(maxLap, 0);
+                for (int i = startIndex; i <= maxIndex; i++) {
+                    try {
+                        Method getter = TResults.class.getMethod("getTime" + i);
+                        Integer timeValue = (Integer) getter.invoke(result);
+                        if (timeValue != null) {
+                            dto.setLapTime(i, TimeFormatUtil.intToTimeString(timeValue));
+                        }
+                    } catch (Exception e) {
+                        // Ignore if getter doesn't exist or fails
+                    }
+                }
+                
+                return dto;
+            }).collect(Collectors.toList());
             
-            return dto;
-        }).collect(Collectors.toList());
-        return responseList;
+            return new CategoryResultListWrapper("LAP", lapResponseList);
+        } else {
+            // Return TIME mode response (default)
+            final String cplist = (eventcat != null && !eventcat.isEmpty()) ? eventcat.get(0).getCplist() : null;
+            List<EventCategoryResultResponse> responseList = results.stream().map(result -> {
+                EventCategoryResultResponse dto = new EventCategoryResultResponse();
+                dto.setCplist(cplist);
+                dto.setName(result.getName());
+                dto.setBib(result.getBib());
+                dto.setCategory(result.getCategory());
+                dto.setEventId(result.getEventId());
+                dto.setCat(result.getCat());
+                dto.setRank1Cat(result.getRank1cat());
+                dto.setRank1Mix(result.getRank1mix());
+                dto.setRank1Tot(result.getRank1tot());
+                dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+                dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : null);
+                dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : null);
+                dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : null);
+                dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()-result.getTimegun()) : null);
+                dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()-result.getTimegun()) : null);
+                dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()-result.getTimegun()) : null);
+                dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()-result.getTimegun()) : null);
+                dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()-result.getTimegun()) : null);
+                dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()-result.getTimegun()) : null);
+                dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()-result.getTimegun()) : null);
+                dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()-result.getTimegun()) : null);
+                dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()-result.getTimegun()) : null);
+                dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()-result.getTimegun()) : null);
+                
+                // Only set TimeCP values that are in cplist
+                if (cplist != null && !cplist.isEmpty()) {
+                    String[] cps = cplist.split(",");
+                    for (String cp : cps) {
+                        String cpTrim = cp.trim();
+                        switch (cpTrim) {
+                            case "TimeCP1":
+                                dto.setTimeCP1(result.getTimecp1() != null ? TimeFormatUtil.intToTimeString(result.getTimecp1()) : null);
+                                break;
+                            case "TimeCP2":
+                                dto.setTimeCP2(result.getTimecp2() != null ? TimeFormatUtil.intToTimeString(result.getTimecp2()) : null);
+                                break;
+                            case "TimeCP3":
+                                dto.setTimeCP3(result.getTimecp3() != null ? TimeFormatUtil.intToTimeString(result.getTimecp3()) : null);
+                                break;
+                            case "TimeCP4":
+                                dto.setTimeCP4(result.getTimecp4() != null ? TimeFormatUtil.intToTimeString(result.getTimecp4()) : null);
+                                break;
+                            case "TimeCP5":
+                                dto.setTimeCP5(result.getTimecp5() != null ? TimeFormatUtil.intToTimeString(result.getTimecp5()) : null);
+                                break;
+                            case "TimeCP6":
+                                dto.setTimeCP6(result.getTimecp6() != null ? TimeFormatUtil.intToTimeString(result.getTimecp6()) : null);
+                                break;
+                            case "TimeCP7":
+                                dto.setTimeCP7(result.getTimecp7() != null ? TimeFormatUtil.intToTimeString(result.getTimecp7()) : null);
+                                break;
+                            case "TimeCP8":
+                                dto.setTimeCP8(result.getTimecp8() != null ? TimeFormatUtil.intToTimeString(result.getTimecp8()) : null);
+                                break;
+                            case "TimeCP9":
+                                dto.setTimeCP9(result.getTimecp9() != null ? TimeFormatUtil.intToTimeString(result.getTimecp9()) : null);
+                                break;
+                            case "TimeCP10":
+                                dto.setTimeCP10(result.getTimecp10() != null ? TimeFormatUtil.intToTimeString(result.getTimecp10()) : null);
+                                break;
+                        }
+                    }
+                }
+                
+                return dto;
+            }).collect(Collectors.toList());
+            return new CategoryResultListWrapper("TIME", responseList);
+        }
     }
 
     @PostMapping("/event/gender-rank")
-    public List<EventCategoryResultResponse> getGenderRank(@RequestBody GenderRankRequest request) {
+    public CategoryResultListWrapper getGenderRank(@RequestBody GenderRankRequest request) {
         System.out.println("DEBUG: EventId=" + request.getEventId() + ", Distance=" + request.getDistance() + ", Gender=" + request.getGender());
-        List<EventCategoryResultResponse> results = statisticReportService.getGenderRankResults(
+        
+        // Get results for gender ranking
+        List<TResults> results = raceResultService.getResultsByEventAndDistanceAndGenderOrderByRank1mix(
             request.getEventId(), request.getDistance(), request.getGender());
-        System.out.println("DEBUG: Results count=" + results.size());
-        return results;
+        
+        // Get eventcat from first result to determine mode
+        String mode = "TIME";
+        List<TEventCat> eventcat = null;
+        if (results != null && !results.isEmpty()) {
+            String cat = results.get(0).getCat();
+            eventcat = eventCatService.getByEventIdAndCat(request.getEventId(), cat);
+            if (eventcat != null && !eventcat.isEmpty()) {
+                mode = eventcat.get(0).getRacemode();
+            }
+        }
+
+        if ("LAP".equalsIgnoreCase(mode)) {
+            // Return LAP mode response
+            final List<TEventCat> finalEventcat = eventcat;
+            List<LapResultResponse> lapResponseList = results.stream().map(result -> {
+                LapResultResponse dto = new LapResultResponse();
+                dto.setName(result.getName());
+                dto.setBib(result.getBib());
+                dto.setCategory(result.getCategory());
+                dto.setEventId(result.getEventId());
+                dto.setEventName(finalEventcat.get(0).getCategory());
+                dto.setCat(result.getCat());
+                // Set rank1Mix for gender ranking
+                if (result.getRank1mix() != null && result.getRank1mix() > 0) {
+                    dto.setRank1Cat(result.getRank1mix());
+                }
+                dto.setBonusLap(result.getBonuslap());
+                dto.setDqLap(result.getDqLap());
+                dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
+                dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "0");
+                dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "0");
+                dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : "0");
+                dto.setLap(result.getLap());
+                dto.setCplist(finalEventcat.get(0).getCplist());
+                
+                // Set lap time values (time0 to time49) using reflection
+                // Check cplist to determine if halflap > 0
+                String cplist = finalEventcat.get(0).getCplist();
+                boolean includeTimeZero = false;
+                if (cplist != null && !cplist.isEmpty()) {
+                    String[] cplistParts = cplist.split(",");
+                    if (cplistParts.length > 0) {
+                        try {
+                            int halflap = Integer.parseInt(cplistParts[0].trim());
+                            includeTimeZero = halflap > 0;
+                        } catch (NumberFormatException e) {
+                            // If parsing fails, default to false
+                        }
+                    }
+                }
+                int startIndex = includeTimeZero ? 0 : 1;
+                // Use lap-1 to determine max lap times to display
+                Integer lapCount = result.getLap();
+                int maxLap = (lapCount != null && lapCount > 0) ? lapCount - 1 : 0;
+                int maxIndex = Math.max(maxLap, 0);
+                for (int i = startIndex; i <= maxIndex; i++) {
+                    try {
+                        Method getter = TResults.class.getMethod("getTime" + i);
+                        Integer timeValue = (Integer) getter.invoke(result);
+                        if (timeValue != null) {
+                            dto.setLapTime(i, TimeFormatUtil.intToTimeString(timeValue));
+                        }
+                    } catch (Exception e) {
+                        // Ignore if getter doesn't exist or fails
+                    }
+                }
+                
+                return dto;
+            }).collect(Collectors.toList());
+            
+            return new CategoryResultListWrapper("LAP", lapResponseList);
+        } else {
+            // Return TIME mode response (default)
+            List<EventCategoryResultResponse> timeResults = statisticReportService.getGenderRankResults(
+                request.getEventId(), request.getDistance(), request.getGender());
+            System.out.println("DEBUG: Results count=" + timeResults.size());
+            return new CategoryResultListWrapper("TIME", timeResults);
+        }
     }
 
     @PostMapping("/event/overall-rank/xlsx")

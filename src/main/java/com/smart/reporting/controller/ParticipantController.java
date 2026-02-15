@@ -81,6 +81,11 @@ public class ParticipantController {
     @PostMapping("/update")
     public String updateParticipant(@RequestBody ParticipantDto participantDto) {
         try {
+            // Ensure eventId is provided
+            if (participantDto.getEventId() == null || participantDto.getEventId().isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "eventId is required");
+            }
+            
             // Find the existing participant record
             List<TResults> results = raceResultService.getParticipantDetails(participantDto.getEventId(), participantDto.getBib());
             
@@ -89,6 +94,11 @@ public class ParticipantController {
             }
             
             TResults participant = results.get(0);
+            
+            // Validate that the fetched participant belongs to the requested eventId (security check)
+            if (!participant.getEventId().equals(participantDto.getEventId())) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Security check failed: fetched participant does not match requested eventId");
+            }
             
             // Update the participant fields
             participant.setName(participantDto.getName());
@@ -115,8 +125,8 @@ public class ParticipantController {
             participant.setTimecp7(TimeFormatUtil.timeStringToInt(participantDto.getTimeCP7()));
             participant.setTimecp8(TimeFormatUtil.timeStringToInt(participantDto.getTimeCP8()));
             
-            // Save the updated participant
-            raceService.updateParticipant(participant);
+            // Save the updated participant with eventId validation
+            raceService.updateParticipantWithEventValidation(participant, participantDto.getEventId());
             
             return "Participant updated successfully";
         } catch (Exception e) {
