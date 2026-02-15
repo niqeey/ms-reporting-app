@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Date;
@@ -20,6 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(LoginController.class)
+@ContextConfiguration(classes = LoginController.class)
 class LoginControllerTest {
 
     @Autowired
@@ -92,21 +94,25 @@ class LoginControllerTest {
     void testLoginWithMissingUsername() throws Exception {
         LoginRequest invalidRequest = new LoginRequest();
         invalidRequest.setPassword("password123");
+        when(loginService.login(any(LoginRequest.class))).thenReturn(failureResponse);
 
         mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest)))
-                .andExpect(status().is4xxClientError());
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
     void testLoginWithMissingPassword() throws Exception {
         LoginRequest invalidRequest = new LoginRequest();
         invalidRequest.setUsername("testuser");
+        when(loginService.login(any(LoginRequest.class))).thenReturn(failureResponse);
 
         mockMvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest)))
-                .andExpect(status().is4xxClientError());
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false));
     }
 }

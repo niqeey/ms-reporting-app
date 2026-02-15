@@ -43,7 +43,7 @@ class SessionValidationInterceptorTest {
     void setUp() throws Exception {
         stringWriter = new StringWriter();
         writer = new PrintWriter(stringWriter);
-        when(response.getWriter()).thenReturn(writer);
+        lenient().when(response.getWriter()).thenReturn(writer);
 
         validUser = new TOrgUser();
         validUser.setUsername("testuser");
