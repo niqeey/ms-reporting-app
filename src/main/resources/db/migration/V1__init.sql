@@ -652,40 +652,722 @@ CREATE TABLE `servicelog` (
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 
--- Procedures
+-- Functions
 DELIMITER $$
 
--- Missing procedure DDL (privileges?): P_LEADERBOARD_REPORT
+DROP FUNCTION IF EXISTS `_FORMATTIME`$$
+CREATE FUNCTION `_FORMATTIME`(n INT) RETURNS varchar(20) CHARSET utf8mb4
+    READS SQL DATA
+BEGIN
+    DECLARE result VARCHAR(20);
+
+    IF n > 0 THEN
+        SET result = CONCAT(
+            LPAD(FLOOR(n / 3600000), 2, '0'), ':', 
+            LPAD(FLOOR((n % 3600000) / 60000), 2, '0'), ':', 
+            LPAD(FLOOR((n % 60000) / 1000), 2, '0'), '.', 
+            LPAD(n % 1000, 3, '0')
+        );
+    ELSE
+        SET result = NULL;
+    END IF;
+    RETURN result;
+END$$
+
+-- Procedures
+
+DROP PROCEDURE IF EXISTS `P_LEADERBOARD_REPORT`$$
+CREATE PROCEDURE `P_LEADERBOARD_REPORT`(
+    IN in_eventid CHAR(36),
+    IN in_category VARCHAR(100)
+)
+BEGIN
+    DECLARE is_archived TINYINT(1);
+
+    -- Check if the event is archived
+    SELECT IFNULL(archived, 0) INTO is_archived
+    FROM t_event
+    WHERE id = in_eventid;
+
+    -- If event is archived, query from results_archive table
+    IF is_archived = 1 THEN
+        SELECT
+            r.bib,
+            r.name,
+            r.category,
+            r.rank1cat AS rankCat,
+            r.rank1mix AS rankMix,
+            r.rank1tot AS rankTot,
+            r.timestart,
+            r.timefinish,
+            r.timegun,
+            CASE
+                WHEN r.timefinish IS NOT NULL AND r.timestart IS NOT NULL
+                THEN r.timefinish - r.timestart
+                ELSE 0
+            END AS netTime,
+            CASE
+                WHEN r.timefinish IS NOT NULL AND r.timegun IS NOT NULL
+                THEN r.timefinish - r.timegun
+                ELSE 0
+            END AS officialTime,
+            r.timecp1,
+            r.timecp2,
+            r.timecp3,
+            r.timecp4,
+            r.timecp5,
+            r.timecp6,
+            r.timecp7,
+            r.timecp8,
+            r.timecp9,
+            r.timecp10,
+            r.sex,
+            r.lap,
+            ec.cplist
+        FROM results_archive r
+        LEFT JOIN t_event_cat ec ON r.eventid = ec.event_id AND r.cat = ec.cat
+        WHERE r.eventid = in_eventid
+        AND r.cat = in_category
+        AND r.rank1cat > 0
+        ORDER BY r.rank1cat ASC;
+    ELSE
+        -- If event is NOT archived, query from results table
+        SELECT
+            r.bib,
+            r.name,
+            r.category,
+            r.rank1cat AS rankCat,
+            r.rank1mix AS rankMix,
+            r.rank1tot AS rankTot,
+            r.timestart,
+            r.timefinish,
+            r.timegun,
+            CASE
+                WHEN r.timefinish IS NOT NULL AND r.timestart IS NOT NULL
+                THEN r.timefinish - r.timestart
+                ELSE 0
+            END AS netTime,
+            CASE
+                WHEN r.timefinish IS NOT NULL AND r.timegun IS NOT NULL
+                THEN r.timefinish - r.timegun
+                ELSE 0
+            END AS officialTime,
+            r.timecp1,
+            r.timecp2,
+            r.timecp3,
+            r.timecp4,
+            r.timecp5,
+            r.timecp6,
+            r.timecp7,
+            r.timecp8,
+            r.timecp9,
+            r.timecp10,
+            r.sex,
+            r.lap,
+            ec.cplist
+        FROM results r
+        LEFT JOIN t_event_cat ec ON r.eventid = ec.event_id AND r.cat = ec.cat
+        WHERE r.eventid = in_eventid
+        AND r.cat = in_category
+        AND r.rank1cat > 0
+        ORDER BY r.rank1cat ASC;
+    END IF;
+END$$
 
 -- Missing procedure: generate_marathon_result
 
 -- Missing procedure: get_marathon_results
 
--- Missing procedure DDL (privileges?): P_ASSIGN_RANK1CAT
+DROP PROCEDURE IF EXISTS `P_ASSIGN_RANK1CAT`$$
+CREATE PROCEDURE `P_ASSIGN_RANK1CAT`(
+    IN in_eventid CHAR(36),
+    IN in_cat VARCHAR(100))
+BEGIN
+    DECLARE race_mode TEXT;
+    DECLARE race_cp TEXT;
+    DECLARE order_columns TEXT DEFAULT '';
+    DECLARE where_conditions TEXT DEFAULT '';
+    DECLARE i INT DEFAULT 1;
+    DECLARE row_count_results INT DEFAULT 0;
+    DECLARE row_count_cat INT DEFAULT 0;
 
--- Missing procedure DDL (privileges?): P_ASSIGN_RANK1TOT
+    -- Check existence in t_event_cat
+    SELECT COUNT(*) INTO row_count_cat 
+    FROM t_event_cat 
+    WHERE event_id = in_eventid AND cat = in_cat;
 
--- Missing procedure DDL (privileges?): P_ASSIGN_RANK1MIX
+    -- Check existence in t_results
+    SELECT COUNT(*) INTO row_count_results
+    FROM results 
+    WHERE EventId = in_eventid AND cat = in_cat;
 
--- Missing procedure DDL (privileges?): P_STATISTIC_00_REPORT
+    -- Only proceed if both have data
+    IF row_count_cat > 0 AND row_count_results > 0 THEN
 
--- Missing procedure DDL (privileges?): P_STATISTIC_00_REGLIST
+        -- Get race mode and cp list
+        SELECT racemode, cplist INTO race_mode, race_cp
+        FROM t_event_cat
+        WHERE cat = in_cat AND event_id = in_eventid;
 
--- Missing procedure DDL (privileges?): P_STATISTIC_01_STARTLIST
+        IF race_mode = 'LAP' THEN
+            -- race_cp holds lap count (e.g., '3')
+            SET i = 1;
+            SET order_columns = '';
+            WHILE i <= CAST(race_cp AS UNSIGNED) DO
+                SET order_columns = CONCAT(order_columns, IF(i > 1, ',', ''), 'time', i);
+                SET i = i + 1;
+            END WHILE;
+            SET where_conditions = ''; -- usually no need, but could add if required (e.g., time1>0)
+        ELSE
+            -- race_cp is comma-separated list, e.g., 'TimeCP1,TimeCP2,TimeFinish'
+            SET @cp_list = race_cp;
+            SET order_columns = '';
+            SET where_conditions = 'DQ <> 1 and NR <> 1 AND TimeStart>0 and Timefinish>0 ';
 
--- Missing procedure DDL (privileges?): P_STATISTIC_02_DNS
+            WHILE LOCATE(',', @cp_list) > 0 DO
+                SET @cp = TRIM(SUBSTRING_INDEX(@cp_list, ',', 1));
 
--- Missing procedure DDL (privileges?): P_STATISTIC_03_FINISHED
+                SET order_columns = CONCAT(order_columns, IF(order_columns != '', ',', ''), @cp);
+                SET where_conditions = CONCAT(where_conditions, IF(where_conditions != '', ' AND ', ''), @cp, ' > 0');
 
--- Missing procedure DDL (privileges?): P_STATISTIC_04_DNF
+                SET @cp_list = SUBSTRING(@cp_list, LOCATE(',', @cp_list) + 1);
+            END WHILE;
 
--- Missing procedure DDL (privileges?): P_STATISTIC_05_FS
+            -- Add last cp
+            SET @cp = TRIM(@cp_list);
+            SET order_columns = CONCAT(order_columns, IF(order_columns != '', ',', ''), @cp);
+            SET where_conditions = CONCAT(where_conditions, IF(where_conditions != '', ' AND ', ''), @cp, ' > 0');
+        END IF;
 
--- Missing procedure DDL (privileges?): P_STATISTIC_06_NSBF
+        -- Build final dynamic SQL
+        SET @sql_query = CONCAT(
+            'WITH ranked AS (',
+            ' SELECT pid, ROW_NUMBER() OVER (ORDER BY timeFinish) AS new_rank',
+            ' FROM results ',
+            ' WHERE EventId = "', in_eventid, '" AND DQ <> 1 and NR <> 1 AND cat = "', in_cat, '"',
+            IF(where_conditions != '', CONCAT(' AND ', where_conditions), ''),
+            ') ',
+            'UPDATE results r ',
+            'JOIN ranked rk ON r.pid = rk.pid ',
+            'SET r.rank1cat = rk.new_rank;'
+        );
 
--- Missing procedure DDL (privileges?): P_STATISTIC_07_DQ
+        -- Log
+        INSERT INTO servicelog(Query, Query_text, log_time)
+        VALUES('P_ASSIGN_RANK1CAT', @sql_query, NOW());
 
--- Missing procedure DDL (privileges?): P_DUMMY_REPORT
+        -- Execute
+        PREPARE stmt FROM @sql_query;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
 
--- Missing procedure DDL (privileges?): P_DUMMY_REPORT_CLEAR
+    ELSE
+        -- log if nothing to update
+        INSERT INTO servicelog(Query, Query_text, log_time)
+        VALUES('P_ASSIGN_RANK1CAT', CONCAT('Skipped: No data found in t_event_cat or results for eventid=', in_eventid, ' and cat=', in_cat), NOW());
+    END IF;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_ASSIGN_RANK1TOT`$$
+CREATE PROCEDURE `P_ASSIGN_RANK1TOT`(
+    IN in_eventid CHAR(36),
+    IN in_dist VARCHAR(100))
+BEGIN
+    DECLARE race_mode TEXT;
+    DECLARE race_cp TEXT;
+    DECLARE order_columns TEXT DEFAULT '';
+    DECLARE where_conditions TEXT DEFAULT '';
+    DECLARE i INT DEFAULT 1;
+    DECLARE row_count_results INT DEFAULT 0;
+    DECLARE row_count_cat INT DEFAULT 0;
+
+    -- Check existence in t_event_cat
+    SELECT COUNT(*) INTO row_count_cat 
+    FROM t_event_cat 
+    WHERE event_id = in_eventid AND distance = in_dist;
+
+    -- Check existence in t_results
+    SELECT COUNT(*) INTO row_count_results
+    FROM results 
+    WHERE EventId = in_eventid AND distance = in_dist;
+
+    -- Only proceed if both have data
+    IF row_count_cat > 0 AND row_count_results > 0 THEN
+
+        -- Get race mode and cp list
+        SELECT racemode, cplist INTO race_mode, race_cp
+        FROM t_event_cat
+        WHERE distance = in_dist AND event_id = in_eventid
+        limit 1;
+
+        IF race_mode = 'LAP' THEN
+            -- race_cp holds lap count (e.g., '3')
+            SET i = 1;
+            SET order_columns = '';
+            WHILE i <= CAST(race_cp AS UNSIGNED) DO
+                SET order_columns = CONCAT(order_columns, IF(i > 1, ',', ''), 'time', i);
+                SET i = i + 1;
+            END WHILE;
+            SET where_conditions = ''; -- usually no need, but could add if required (e.g., time1>0)
+        ELSE
+            -- race_cp is comma-separated list, e.g., 'TimeCP1,TimeCP2,TimeFinish'
+            SET @cp_list = race_cp;
+            SET order_columns = '';
+            SET where_conditions = 'DQ <> 1 and NR <> 1 AND  TimeStart>0 and Timefinish>0 ';
+
+            WHILE LOCATE(',', @cp_list) > 0 DO
+                SET @cp = TRIM(SUBSTRING_INDEX(@cp_list, ',', 1));
+
+                SET order_columns = CONCAT(order_columns, IF(order_columns != '', ',', ''), @cp);
+                SET where_conditions = CONCAT(where_conditions, IF(where_conditions != '', ' AND ', ''), @cp, ' > 0');
+
+                SET @cp_list = SUBSTRING(@cp_list, LOCATE(',', @cp_list) + 1);
+            END WHILE;
+
+            -- Add last cp
+            SET @cp = TRIM(@cp_list);
+            SET order_columns = CONCAT(order_columns, IF(order_columns != '', ',', ''), @cp);
+            SET where_conditions = CONCAT(where_conditions, IF(where_conditions != '', ' AND ', ''), @cp, ' > 0');
+        END IF;
+
+        -- Build final dynamic SQL
+        SET @sql_query = CONCAT(
+            'WITH ranked AS (',
+            ' SELECT pid, ROW_NUMBER() OVER (ORDER BY timeFinish) AS new_rank',
+            ' FROM results ',
+            ' WHERE EventId = "', in_eventid, '" AND DQ <> 1 and NR <> 1 AND distance = "', in_dist, '"',
+            IF(where_conditions != '', CONCAT(' AND ', where_conditions), ''),
+            ') ',
+            'UPDATE results r ',
+            'JOIN ranked rk ON r.pid = rk.pid ',
+            'SET r.rank1tot = rk.new_rank;'
+        );
+
+        -- Log
+        INSERT INTO servicelog(Query, Query_text, log_time)
+        VALUES('P_ASSIGN_RANK1TOT', @sql_query, NOW());
+
+        -- Execute
+        PREPARE stmt FROM @sql_query;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+    ELSE
+        -- log if nothing to update
+        INSERT INTO servicelog(Query, Query_text, log_time)
+        VALUES('P_ASSIGN_RANK1TOT', CONCAT('Skipped: No data found in t_event_cat or results for eventid=', in_eventid, ' and cat=', in_cat), NOW());
+    END IF;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_ASSIGN_RANK1MIX`$$
+CREATE PROCEDURE `P_ASSIGN_RANK1MIX`(
+    IN in_eventid CHAR(36),
+    IN in_dist VARCHAR(100),
+    IN in_gender VARCHAR(100))
+BEGIN
+    DECLARE race_mode TEXT;
+    DECLARE race_cp TEXT;
+    DECLARE order_columns TEXT DEFAULT '';
+    DECLARE where_conditions TEXT DEFAULT '';
+    DECLARE i INT DEFAULT 1;
+    DECLARE row_count_results INT DEFAULT 0;
+    DECLARE row_count_cat INT DEFAULT 0;
+
+    -- Check existence in t_event_cat
+    SELECT COUNT(*) INTO row_count_cat 
+    FROM t_event_cat 
+    WHERE event_id = in_eventid AND distance = in_dist;
+
+    -- Check existence in t_results
+    SELECT COUNT(*) INTO row_count_results
+    FROM results 
+    WHERE EventId = in_eventid AND distance = in_dist;
+
+    -- Only proceed if both have data
+    IF row_count_cat > 0 AND row_count_results > 0 THEN
+
+        -- Get race mode and cp list
+        SELECT racemode, cplist INTO race_mode, race_cp
+        FROM t_event_cat
+        WHERE distance = in_dist AND event_id = in_eventid
+        limit 1;
+
+        IF race_mode = 'LAP' THEN
+            -- race_cp holds lap count (e.g., '3')
+            SET i = 1;
+            SET order_columns = '';
+            WHILE i <= CAST(race_cp AS UNSIGNED) DO
+                SET order_columns = CONCAT(order_columns, IF(i > 1, ',', ''), 'time', i);
+                SET i = i + 1;
+            END WHILE;
+            SET where_conditions = ''; -- usually no need, but could add if required (e.g., time1>0)
+        ELSE
+            -- race_cp is comma-separated list, e.g., 'TimeCP1,TimeCP2,TimeFinish'
+            SET @cp_list = race_cp;
+            SET order_columns = '';
+            SET where_conditions = 'DQ <> 1 and NR <> 1 AND  TimeStart>0 and Timefinish>0 ';
+
+            WHILE LOCATE(',', @cp_list) > 0 DO
+                SET @cp = TRIM(SUBSTRING_INDEX(@cp_list, ',', 1));
+
+                SET order_columns = CONCAT(order_columns, IF(order_columns != '', ',', ''), @cp);
+                SET where_conditions = CONCAT(where_conditions, IF(where_conditions != '', ' AND ', ''), @cp, ' > 0');
+
+                SET @cp_list = SUBSTRING(@cp_list, LOCATE(',', @cp_list) + 1);
+            END WHILE;
+
+            -- Add last cp
+            SET @cp = TRIM(@cp_list);
+            SET order_columns = CONCAT(order_columns, IF(order_columns != '', ',', ''), @cp);
+            SET where_conditions = CONCAT(where_conditions, IF(where_conditions != '', ' AND ', ''), @cp, ' > 0');
+        END IF;
+
+        -- Build final dynamic SQL
+        SET @sql_query = CONCAT(
+            'WITH ranked AS (',
+            ' SELECT pid, ROW_NUMBER() OVER (ORDER BY timeFinish) AS new_rank',
+            ' FROM results ',
+            ' WHERE EventId = "', in_eventid, '" AND DQ <> 1 and NR <> 1 AND sex = "', in_gender, '" AND distance = "', in_dist, '"',
+            IF(where_conditions != '', CONCAT(' AND ', where_conditions), ''),
+            ') ',
+            'UPDATE results r ',
+            'JOIN ranked rk ON r.pid = rk.pid ',
+            'SET r.rank1mix = rk.new_rank;'
+        );
+
+        -- Log
+        INSERT INTO servicelog(Query, Query_text, log_time)
+        VALUES('P_ASSIGN_RANK1MIX', @sql_query, NOW());
+
+        -- Execute
+        PREPARE stmt FROM @sql_query;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+    ELSE
+        -- log if nothing to update
+        INSERT INTO servicelog(Query, Query_text, log_time)
+        VALUES('P_ASSIGN_RANK1MIX', CONCAT('Skipped: No data found in t_event_cat or results for eventid=', in_eventid, ' and cat=', in_cat), NOW());
+    END IF;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_00_REPORT`$$
+CREATE PROCEDURE `P_STATISTIC_00_REPORT`(IN in_eventid CHAR(36))
+BEGIN
+UPDATE results SET nsbf=0,dns=0,dnf=0,nsbf=0,fs=0 WHERE eventid=in_eventid;
+UPDATE results SET DNS = 1 WHERE eventid=in_eventid AND timestart =0 AND TRIM(name) <> '' AND name IS NOT NULL AND cat IS NOT NULL AND cat <>'';
+UPDATE results SET DNF = 1 WHERE eventid=in_eventid AND  timestart >0 AND TRIM(name) <> '' AND name IS NOT NULL AND cat IS NOT NULL  AND cat <>'' AND timefinish = 0;
+UPDATE results SET NSBF = 1 WHERE eventid=in_eventid AND  timestart = 0 AND  TRIM(name) <> '' AND name IS NOT NULL AND cat IS NOT NULL  AND cat <>'' AND timefinish > 0;
+UPDATE results SET FS = 1 WHERE eventid=in_eventid AND  timestart <timeGun AND  TRIM(name) <> '' AND name IS NOT NULL AND cat IS NOT NULL  AND cat <>'' AND timestart>0 AND timegun>0;
+
+SELECT
+    'Statistic' AS STATISTIC,
+    Cat,
+    IFNULL(category, 'UNASSIGNED_CAT') AS CATEGORY,
+    COUNT(*) AS REGISTERED,
+    SUM(timestart  > 0) AS STARTED,
+    SUM(DNS > 0) AS DID_NOT_START,
+    SUM(timestart > 0 AND TimeFinish > 0) AS FINISHED,
+    SUM(DNF > 0) AS DID_NOT_FINISH,
+    SUM(FS > 0) AS FALSE_START,
+    SUM(NSBF > 0) AS NO_START_BUT_FINISHED,
+    SUM(DQ > 0) AS Disqualified,
+    distance
+FROM results
+WHERE category IS NOT NULL AND eventid=in_eventid
+GROUP BY cat,category,distance
+
+UNION ALL
+
+SELECT
+    'zStatistic',
+    ' ' AS Cat,
+    CONCAT('SubTotal: ',ROUND(distance),'KM'),
+    COUNT(*),
+    SUM(timestart > 0),
+    SUM(DNS > 0),
+    SUM(timestart > 0 AND TimeFinish > 0),
+    SUM(DNF > 0),
+    SUM(FS > 0),
+    SUM(NSBF > 0),
+    SUM(DQ > 0),
+    distance
+FROM results
+WHERE category IS NOT NULL AND eventid=in_eventid
+GROUP BY distance
+
+UNION ALL
+
+SELECT
+    'Statistic',
+    'Z' AS Cat,
+    'Z_TOTAL',
+    COUNT(*),
+    SUM(timestart > 0),
+    SUM(DNS > 0),
+    SUM(timestart > 0 AND TimeFinish > 0),
+    SUM(DNF > 0),
+    SUM(FS > 0),
+    SUM(NSBF > 0),
+    SUM(DQ > 0),
+    0
+FROM results
+WHERE category IS NOT NULL AND eventid=in_eventid;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_00_REGLIST`$$
+CREATE PROCEDURE `P_STATISTIC_00_REGLIST`(IN in_eventid CHAR(36))
+BEGIN
+    SELECT 'Registered' AS item, category, bib, name 
+    FROM results 
+    WHERE eventid=in_eventid AND category IS NOT NULL AND category <>'' 
+    ORDER BY 2,3;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_01_STARTLIST`$$
+CREATE PROCEDURE `P_STATISTIC_01_STARTLIST`(IN in_eventid CHAR(36))
+BEGIN
+    SELECT 'StartList' AS item, category, bib, name, 
+           CONCAT('''', _formatTime(timestart)) AS TimeStart,
+           CONCAT('''', _formatTime(timeGun)) AS TimeGun 
+    FROM results 
+    WHERE eventid=in_eventid AND timestart > 0 AND category IS NOT NULL AND category <>'' 
+    ORDER BY cat;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_02_DNS`$$
+CREATE PROCEDURE `P_STATISTIC_02_DNS`(IN in_eventid CHAR(36))
+BEGIN
+    SELECT 'DNS' AS item, category, bib, name,
+           CONCAT('''', _formatTime(timestart)) AS TimeStart,
+           CONCAT('''', _formatTime(timeGun)) AS TimeGun 
+    FROM results 
+    WHERE eventid=in_eventid AND dns=1 
+    ORDER BY cat;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_03_FINISHED`$$
+CREATE PROCEDURE `P_STATISTIC_03_FINISHED`(IN in_eventid CHAR(36))
+BEGIN
+    SELECT 'Finished' AS item, category, bib, name,
+           CONCAT('''', _formatTime(timestart)) AS TimeStart,
+           CONCAT('''', _formatTime(timeGun)) AS TimeGun,
+           CONCAT('''', _formatTime(timefinish)) AS TimeFinish 
+    FROM results 
+    WHERE eventid=in_eventid AND timestart > 0 AND TimeFinish > 0 
+    ORDER BY cat;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_04_DNF`$$
+CREATE PROCEDURE `P_STATISTIC_04_DNF`(IN in_eventid CHAR(36))
+BEGIN
+    SELECT 'DNF' AS item, category, bib, name,
+           CONCAT('''', _formatTime(timestart)) AS TimeStart,
+           CONCAT('''', _formatTime(timeGun)) AS TimeGun,
+           CONCAT('''', _formatTime(timefinish)) AS TimeFinish 
+    FROM results 
+    WHERE eventid=in_eventid AND DNF=1 
+    ORDER BY cat;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_05_FS`$$
+CREATE PROCEDURE `P_STATISTIC_05_FS`(IN in_eventid CHAR(36))
+BEGIN
+    SELECT 'FALSE_START' AS item, category, bib, name,
+           CONCAT('''', _formatTime(timestart)) AS TimeStart,
+           CONCAT('''', _formatTime(timegun)) AS TimeGun 
+    FROM results 
+    WHERE eventid=in_eventid AND FS=1 
+    ORDER BY cat;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_06_NSBF`$$
+CREATE PROCEDURE `P_STATISTIC_06_NSBF`(IN in_eventid CHAR(36))
+BEGIN
+    SELECT 'NSBF' AS item, category, bib, name,
+           CONCAT('''', _formatTime(timestart)) AS TimeStart,
+           CONCAT('''', _formatTime(timeGun)) AS TimeGun,
+           CONCAT('''', _formatTime(timefinish)) AS TimeFinish 
+    FROM results 
+    WHERE eventid=in_eventid AND NSBF=1 
+    ORDER BY cat, bib;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_STATISTIC_07_DQ`$$
+CREATE PROCEDURE `P_STATISTIC_07_DQ`(IN in_eventid CHAR(36))
+BEGIN
+    SELECT 'DQ' AS item, category, bib, name,
+           CONCAT('''', _formatTime(timestart)) AS TimeStart,
+           CONCAT('''', _formatTime(timeGun)) AS TimeGun,
+           CONCAT('''', _formatTime(timefinish)) AS TimeFinish,
+           Remark 
+    FROM results 
+    WHERE eventid=in_eventid AND DQ=1 
+    ORDER BY cat, bib;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_DUMMY_REPORT`$$
+CREATE PROCEDURE `P_DUMMY_REPORT`(
+    IN p_event_id VARCHAR(36),
+    IN p_category VARCHAR(10),
+    IN p_timegun INT
+)
+BEGIN
+    DECLARE v_cplist TEXT;
+    DECLARE v_cp_count INT DEFAULT 0;
+    DECLARE v_cp_name VARCHAR(20);
+    DECLARE v_remaining TEXT;
+    DECLARE v_comma_pos INT;
+
+    -- Get cplist from t_event_cat
+    SELECT cplist INTO v_cplist
+    FROM t_event_cat
+    WHERE event_id = p_event_id AND cat = p_category
+    LIMIT 1;
+
+    -- Count checkpoints
+    IF v_cplist IS NOT NULL AND v_cplist != '' THEN
+        SET v_cp_count = (LENGTH(v_cplist) - LENGTH(REPLACE(v_cplist, ',', '')) + 1);
+    END IF;
+
+    -- Update results table for all participants in this event/category
+    UPDATE results r
+    SET
+        -- Set gun time
+        r.timegun = p_timegun,
+
+        -- Set start time (randomly 1-60 seconds after gun time)
+        r.timestart = p_timegun + FLOOR(1000 + RAND() * 59000),
+
+        -- Set checkpoint times (20-25 minutes gap between each)
+        r.timecp1 = CASE
+            WHEN v_cp_count >= 1 THEN p_timegun + FLOOR(1200000 + RAND() * 300000) -- 20-25 min
+            ELSE 0
+        END,
+
+        r.timecp2 = CASE
+            WHEN v_cp_count >= 2 THEN r.timecp1 + FLOOR(1200000 + RAND() * 300000) -- +20-25 min
+            ELSE 0
+        END,
+
+        r.timecp3 = CASE
+            WHEN v_cp_count >= 3 THEN r.timecp2 + FLOOR(1200000 + RAND() * 300000)
+            ELSE 0
+        END,
+
+        r.timecp4 = CASE
+            WHEN v_cp_count >= 4 THEN r.timecp3 + FLOOR(1200000 + RAND() * 300000)
+            ELSE 0
+        END,
+
+        r.timecp5 = CASE
+            WHEN v_cp_count >= 5 THEN r.timecp4 + FLOOR(1200000 + RAND() * 300000)
+            ELSE 0
+        END,
+        
+        r.timecp6 = CASE
+            WHEN v_cp_count >= 6 THEN r.timecp5 + FLOOR(1200000 + RAND() * 300000)
+            ELSE 0
+        END,
+
+        r.timecp7 = CASE
+            WHEN v_cp_count >= 7 THEN r.timecp6 + FLOOR(1200000 + RAND() * 300000)
+            ELSE 0
+        END,
+
+        r.timecp8 = CASE
+            WHEN v_cp_count >= 8 THEN r.timecp7 + FLOOR(1200000 + RAND() * 300000)
+            ELSE 0
+        END,
+
+        r.timecp9 = CASE
+            WHEN v_cp_count >= 9 THEN r.timecp8 + FLOOR(1200000 + RAND() * 300000)
+            ELSE 0
+        END,
+
+        r.timecp10 = CASE
+            WHEN v_cp_count >= 10 THEN r.timecp9 + FLOOR(1200000 + RAND() * 300000)
+            ELSE 0
+        END,
+
+        -- Set finish time (20-30 minutes after last checkpoint or start if no checkpoints)
+        r.timefinish = CASE
+            WHEN v_cp_count >= 10 THEN r.timecp10 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 9 THEN r.timecp9 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 8 THEN r.timecp8 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 7 THEN r.timecp7 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 6 THEN r.timecp6 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 5 THEN r.timecp5 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 4 THEN r.timecp4 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 3 THEN r.timecp3 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 2 THEN r.timecp2 + FLOOR(1200000 + RAND() * 600000)
+            WHEN v_cp_count >= 1 THEN r.timecp1 + FLOOR(1200000 + RAND() * 600000)
+            ELSE r.timestart + FLOOR(1200000 + RAND() * 600000)
+        END,
+
+        -- Clear status flags
+        r.dnf = 0,
+        r.dq = 0,
+        r.dns = 0,
+        r.fs = 0,
+        r.nsbf = 0,
+        r.nr = 0
+
+    WHERE r.eventid = p_event_id AND r.cat = p_category;
+
+    -- Log completion
+    INSERT INTO servicelog(Query, Query_text, log_time)
+    VALUES('P_DUMMY_REPORT',
+           CONCAT('Generated dummy data for eventid=', p_event_id, ', cat=', p_category, ', participants=', ROW_COUNT()),
+           NOW());
+
+END$$
+
+DROP PROCEDURE IF EXISTS `P_DUMMY_REPORT_CLEAR`$$
+CREATE PROCEDURE `P_DUMMY_REPORT_CLEAR`(
+    IN p_event_id VARCHAR(36),
+    IN p_category VARCHAR(10)
+)
+BEGIN
+    -- Reset all race-related fields to 0 or NULL
+    UPDATE results r
+    SET
+        -- Reset times
+        r.timegun = 0,
+        r.timestart = 0,
+        r.timefinish = 0,
+        r.timecp1 = 0,
+        r.timecp2 = 0,
+        r.timecp3 = 0,
+        r.timecp4 = 0,
+        r.timecp5 = 0,
+        r.timecp6 = 0,
+        r.timecp7 = 0,
+        r.timecp8 = 0,
+        r.timecp9 = 0,
+        r.timecp10 = 0,
+
+        -- Reset ranks
+        r.rank1cat = 0,
+        r.rank1mix = 0,
+        r.rank1tot = 0,
+
+        -- Reset status flags
+        r.nr = 0,
+        r.fs = 0,
+        r.dnf = 0,
+        r.dns = 0,
+        r.dq = 0,
+        r.nsbf = 0
+
+    WHERE r.eventid = p_event_id AND r.cat = p_category;
+
+    -- Log completion
+    INSERT INTO servicelog(Query, Query_text, log_time)
+    VALUES('P_DUMMY_REPORT_CLEAR',
+           CONCAT('Cleared all race data for eventid=', p_event_id, ', cat=', p_category, ', participants=', ROW_COUNT()),
+           NOW());
+
+END$$
+
 DELIMITER ;
