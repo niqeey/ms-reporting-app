@@ -8,6 +8,7 @@ import com.smart.reporting.entity.TResults;
 import com.smart.reporting.repository.TEventRepository;
 import com.smart.reporting.repository.TOrgRepository;
 import com.smart.reporting.util.TimeFormatUtil;
+import com.smart.reporting.util.LapTimeCalculator;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -226,12 +227,14 @@ public class ReportExportService {
                 c2.setCellValue(result.getName());
                 c2.setCellStyle(rowStyle);
 
+                // Fixed: officialTime = timefinish - timestart
                 Cell c3 = row.createCell(dataColIdx++);
-                c3.setCellValue(TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimegun()));
+                c3.setCellValue(TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimestart()));
                 c3.setCellStyle(rowStyle);
 
+                // Fixed: netTime = timefinish - timegun
                 Cell c4 = row.createCell(dataColIdx++);
-                c4.setCellValue(TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimestart()));
+                c4.setCellValue(TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimegun()));
                 c4.setCellStyle(rowStyle);
 
                 Cell c5 = row.createCell(dataColIdx++);
@@ -253,27 +256,25 @@ public class ReportExportService {
                         }
                     }
                     
+                    Integer lapCountValue = result.getLap();
+                    int displayMaxLap = (lapCountValue != null && lapCountValue > 0) ? lapCountValue - 1 : 0;
+                    boolean includeHalfLap = halflap > 0;
+
                     // Add time0 (half-lap) if halflap > 0
-                    if (halflap > 0) {
+                    if (includeHalfLap) {
                         Cell halfLapCell = row.createCell(dataColIdx++);
-                        try {
-                            Method getter = TResults.class.getMethod("getTime0");
-                            Integer timeValue = (Integer) getter.invoke(result);
-                            halfLapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
-                        } catch (Exception e) {
-                            halfLapCell.setCellValue("");
-                        }
+                        String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, 0, true);
+                        halfLapCell.setCellValue(intervalTime != null ? intervalTime : "");
                         halfLapCell.setCellStyle(rowStyle);
                     }
                     
-                    // Add lap times (time1, time2, etc.)
+                    // Add lap times (Lap 1..N) as intervals
                     for (int i = 1; i <= lapCount; i++) {
                         Cell lapCell = row.createCell(dataColIdx++);
-                        try {
-                            Method getter = TResults.class.getMethod("getTime" + i);
-                            Integer timeValue = (Integer) getter.invoke(result);
-                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
-                        } catch (Exception e) {
+                        if (i <= displayMaxLap) {
+                            String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, i, includeHalfLap);
+                            lapCell.setCellValue(intervalTime != null ? intervalTime : "");
+                        } else {
                             lapCell.setCellValue("");
                         }
                         lapCell.setCellStyle(rowStyle);
@@ -1190,66 +1191,56 @@ public class ReportExportService {
                 c7.setCellValue(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "");
                 c7.setCellStyle(rowStyle);
 
-                // Official Time (timefinish - timegun)
+                // Fixed: Official Time = timefinish - timestart
                 Cell c8 = row.createCell(colIdx++);
                 String officialTime = "";
-                if (result.getTimefinish() != null && result.getTimegun() != null) {
-                    officialTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimegun());
+                if (result.getTimefinish() != null && result.getTimestart() != null) {
+                    officialTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimestart());
                 }
                 c8.setCellValue(officialTime);
                 c8.setCellStyle(rowStyle);
 
-                // Net Time (timefinish - timestart)
+                // Fixed: Net Time = timefinish - timegun
                 Cell c9 = row.createCell(colIdx++);
                 String netTime = "";
-                if (result.getTimefinish() != null && result.getTimestart() != null) {
-                    netTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimestart());
+                if (result.getTimefinish() != null && result.getTimegun() != null) {
+                    netTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimegun());
                 }
                 c9.setCellValue(netTime);
                 c9.setCellStyle(rowStyle);
 
-                // Lap times (display from time(startIndex) to time(lap-1))
+                // Lap times (calculate intervals instead of cumulative)
                 Integer lapCount = result.getLap();
                 int displayMaxLap = (lapCount != null && lapCount > 0) ? lapCount - 1 : 0;
                 int startIndex = includeHalfLap ? 0 : 1;
                 
                 // Add time0 if needed
                 if (includeHalfLap) {
-                    try {
-                        Method getter = TResults.class.getMethod("getTime0");
-                        Integer timeValue = (Integer) getter.invoke(result);
-                        Cell lapCell = row.createCell(colIdx++);
-                        if (timeValue != null) {
-                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
-                        } else {
-                            lapCell.setCellValue("");
-                        }
-                        lapCell.setCellStyle(rowStyle);
-                    } catch (Exception e) {
-                        Cell lapCell = row.createCell(colIdx++);
+                    Cell lapCell = row.createCell(colIdx++);
+                    String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, 0, includeHalfLap);
+                    if (intervalTime != null) {
+                        lapCell.setCellValue(intervalTime);
+                    } else {
                         lapCell.setCellValue("");
-                        lapCell.setCellStyle(rowStyle);
                     }
+                    lapCell.setCellStyle(rowStyle);
                 }
                 
-                // Add lap times 1 to maxLapCount
+                // Add lap times 1 to maxLapCount (as intervals)
                 for (int i = 1; i <= maxLapCount; i++) {
-                    try {
-                        Method getter = TResults.class.getMethod("getTime" + i);
-                        Integer timeValue = (Integer) getter.invoke(result);
-                        Cell lapCell = row.createCell(colIdx++);
-                        // Only display if this lap was completed (i <= displayMaxLap)
-                        if (i <= displayMaxLap && timeValue != null) {
-                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
+                    Cell lapCell = row.createCell(colIdx++);
+                    // Only display if this lap was completed (i <= displayMaxLap)
+                    if (i <= displayMaxLap) {
+                        String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, i, includeHalfLap);
+                        if (intervalTime != null) {
+                            lapCell.setCellValue(intervalTime);
                         } else {
                             lapCell.setCellValue("");
                         }
-                        lapCell.setCellStyle(rowStyle);
-                    } catch (Exception e) {
-                        Cell lapCell = row.createCell(colIdx++);
+                    } else {
                         lapCell.setCellValue("");
-                        lapCell.setCellStyle(rowStyle);
                     }
+                    lapCell.setCellStyle(rowStyle);
                 }
 
                 // TimeFinish
@@ -1605,66 +1596,56 @@ public class ReportExportService {
                 c6.setCellValue(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "");
                 c6.setCellStyle(rowStyle);
 
-                // Official Time (timefinish - timegun)
+                // Fixed: Official Time = timefinish - timestart
                 Cell c7 = row.createCell(colIdx++);
                 String officialTime = "";
-                if (result.getTimefinish() != null && result.getTimegun() != null) {
-                    officialTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimegun());
+                if (result.getTimefinish() != null && result.getTimestart() != null) {
+                    officialTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimestart());
                 }
                 c7.setCellValue(officialTime);
                 c7.setCellStyle(rowStyle);
 
-                // Net Time (timefinish - timestart)
+                // Fixed: Net Time = timefinish - timegun
                 Cell c8 = row.createCell(colIdx++);
                 String netTime = "";
-                if (result.getTimefinish() != null && result.getTimestart() != null) {
-                    netTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimestart());
+                if (result.getTimefinish() != null && result.getTimegun() != null) {
+                    netTime = TimeFormatUtil.intToTimeString(result.getTimefinish() - result.getTimegun());
                 }
                 c8.setCellValue(netTime);
                 c8.setCellStyle(rowStyle);
 
-                // Lap times (display from time(startIndex) to time(lap-1))
+                // Lap times (calculate intervals instead of cumulative)
                 Integer lapCount = result.getLap();
                 int displayMaxLap = (lapCount != null && lapCount > 0) ? lapCount - 1 : 0;
                 int startIndex = includeHalfLap ? 0 : 1;
                 
                 // Add time0 if needed
                 if (includeHalfLap) {
-                    try {
-                        Method getter = TResults.class.getMethod("getTime0");
-                        Integer timeValue = (Integer) getter.invoke(result);
-                        Cell lapCell = row.createCell(colIdx++);
-                        if (timeValue != null) {
-                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
-                        } else {
-                            lapCell.setCellValue("");
-                        }
-                        lapCell.setCellStyle(rowStyle);
-                    } catch (Exception e) {
-                        Cell lapCell = row.createCell(colIdx++);
+                    Cell lapCell = row.createCell(colIdx++);
+                    String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, 0, includeHalfLap);
+                    if (intervalTime != null) {
+                        lapCell.setCellValue(intervalTime);
+                    } else {
                         lapCell.setCellValue("");
-                        lapCell.setCellStyle(rowStyle);
                     }
+                    lapCell.setCellStyle(rowStyle);
                 }
                 
-                // Add lap times 1 to maxLapCount
+                // Add lap times 1 to maxLapCount (as intervals)
                 for (int i = 1; i <= maxLapCount; i++) {
-                    try {
-                        Method getter = TResults.class.getMethod("getTime" + i);
-                        Integer timeValue = (Integer) getter.invoke(result);
-                        Cell lapCell = row.createCell(colIdx++);
-                        // Only display if this lap was completed (i <= displayMaxLap)
-                        if (i <= displayMaxLap && timeValue != null) {
-                            lapCell.setCellValue(TimeFormatUtil.intToTimeString(timeValue));
+                    Cell lapCell = row.createCell(colIdx++);
+                    // Only display if this lap was completed (i <= displayMaxLap)
+                    if (i <= displayMaxLap) {
+                        String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, i, includeHalfLap);
+                        if (intervalTime != null) {
+                            lapCell.setCellValue(intervalTime);
                         } else {
                             lapCell.setCellValue("");
                         }
-                        lapCell.setCellStyle(rowStyle);
-                    } catch (Exception e) {
-                        Cell lapCell = row.createCell(colIdx++);
+                    } else {
                         lapCell.setCellValue("");
-                        lapCell.setCellStyle(rowStyle);
                     }
+                    lapCell.setCellStyle(rowStyle);
                 }
 
                 // TimeFinish

@@ -29,13 +29,18 @@ public class LeaderboardService {
                 response.setRankMix(rs.getInt("rankMix"));
                 response.setRankTot(rs.getInt("rankTot"));
                 
-                // Convert times from integer milliseconds to HH:MM:SS format
+                // Get raw times from database (in milliseconds)
                 int timeStart = rs.getInt("timestart");
                 int timeFinish = rs.getInt("timefinish");
                 int timeGun = rs.getInt("timegun");
-                int netTime = rs.getInt("netTime");
-                int officialTime = rs.getInt("officialTime");
                 
+                // Calculate netTime and officialTime in the application layer
+                // netTime = timefinish - timegun
+                // officialTime = timefinish - timestart
+                int netTime = (timeFinish > 0 && timeGun > 0) ? (timeFinish - timeGun) : 0;
+                int officialTime = (timeFinish > 0 && timeStart > 0) ? (timeFinish - timeStart) : 0;
+                
+                // Convert times to formatted strings
                 response.setTimeStart(TimeFormatUtil.intToTimeString(timeStart));
                 response.setTimeFinish(TimeFormatUtil.intToTimeString(timeFinish));
                 response.setTimeGun(TimeFormatUtil.intToTimeString(timeGun));

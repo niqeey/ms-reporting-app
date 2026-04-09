@@ -109,14 +109,15 @@ public class PublicLeaderboardController {
             dto.setLap(result.getLap());
             dto.setBonusLap(result.getBonuslap());
             dto.setDqLap(result.getDqLap());
-            dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
-            dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+            // Fixed formulas: netTime = timefinish - timegun, officialTime = timefinish - timestart
+            dto.setNetTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+            dto.setOfficialTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
             dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "0");
             dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "0");
             dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : "0");
             dto.setCplist(finalCplist);
             
-            // Set lap time values (time0 to time49) using reflection
+            // Set lap time values as intervals (not cumulative) using LapTimeCalculator
             // Parse cplist to determine if halflap > 0 (if so, include time0)
             boolean includeTimeZero = false;
             if (finalCplist != null && !finalCplist.isEmpty()) {
@@ -130,17 +131,31 @@ public class PublicLeaderboardController {
                     }
                 }
             }
-            int startIndex = includeTimeZero ? 0 : 1;
-            int maxIndex = startIndex + 50;
-            for (int i = startIndex; i < maxIndex; i++) {
+            
+            // If time0 is used, set it as the half-lap time (interval from timestart/timegun to time0)
+            if (includeTimeZero) {
                 try {
-                    Method getter = TResults.class.getMethod("getTime" + i);
-                    Integer timeValue = (Integer) getter.invoke(result);
-                    if (timeValue != null) {
-                        dto.setLapTime(i, TimeFormatUtil.intToTimeString(timeValue));
+                    Method getter = TResults.class.getMethod("getTime0");
+                    Integer time0Value = (Integer) getter.invoke(result);
+                    if (time0Value != null && time0Value > 0) {
+                        Integer baseTime = result.getTimestart() != null ? result.getTimestart() : result.getTimegun();
+                        if (baseTime != null && baseTime > 0) {
+                            int halfLapInterval = time0Value - baseTime;
+                            dto.setLapTime(0, TimeFormatUtil.intToTimeString(halfLapInterval));
+                        }
                     }
                 } catch (Exception e) {
                     // Ignore if getter doesn't exist or fails
+                }
+            }
+            
+            // Calculate lap intervals for time1 to time49
+            int startIndex = 1;
+            int maxIndex = 50;
+            for (int i = startIndex; i < maxIndex; i++) {
+                String lapIntervalTime = com.smart.reporting.util.LapTimeCalculator.calculateLapIntervalFormatted(result, i, includeTimeZero);
+                if (lapIntervalTime != null) {
+                    dto.setLapTime(i, lapIntervalTime);
                 }
             }
             

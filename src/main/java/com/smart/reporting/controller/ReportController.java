@@ -17,6 +17,7 @@ import com.smart.reporting.service.RaceResultService;
 import com.smart.reporting.service.ReportExportService;
 import com.smart.reporting.service.StatisticReportService;
 import com.smart.reporting.util.TimeFormatUtil;
+import com.smart.reporting.util.LapTimeCalculator;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -100,8 +101,9 @@ public class ReportController {
                 }
                 dto.setBonusLap(result.getBonuslap());
                 dto.setDqLap(result.getDqLap());
-                dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
-                dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                // Fixed formulas: netTime = timefinish - timegun, officialTime = timefinish - timestart
+                dto.setNetTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                dto.setOfficialTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
                 dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "0");
                 dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "0");
                 dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : "0");
@@ -129,14 +131,10 @@ public class ReportController {
                 int maxLap = (lapCount != null && lapCount > 0) ? lapCount - 1 : 0;
                 int maxIndex = Math.max(maxLap, 0);
                 for (int i = startIndex; i <= maxIndex; i++) {
-                    try {
-                        Method getter = TResults.class.getMethod("getTime" + i);
-                        Integer timeValue = (Integer) getter.invoke(result);
-                        if (timeValue != null) {
-                            dto.setLapTime(i, TimeFormatUtil.intToTimeString(timeValue));
-                        }
-                    } catch (Exception e) {
-                        // Ignore if getter doesn't exist or fails
+                    // Calculate lap interval instead of cumulative time
+                    String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, i, includeTimeZero);
+                    if (intervalTime != null) {
+                        dto.setLapTime(i, intervalTime);
                     }
                 }
                 
@@ -158,8 +156,9 @@ public class ReportController {
                 dto.setRank1Cat(result.getRank1cat());
                 dto.setRank1Mix(result.getRank1mix());
                 dto.setRank1Tot(result.getRank1tot());
-                dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
-                dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                // Fixed formulas: netTime = timefinish - timegun, officialTime = timefinish - timestart
+                dto.setNetTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                dto.setOfficialTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
                 dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : null);
                 dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : null);
                 dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : null);
@@ -256,8 +255,9 @@ public class ReportController {
                 }
                 dto.setBonusLap(result.getBonuslap());
                 dto.setDqLap(result.getDqLap());
-                dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
-                dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                // Fixed formulas: netTime = timefinish - timegun, officialTime = timefinish - timestart
+                dto.setNetTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+                dto.setOfficialTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
                 dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : "0");
                 dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : "0");
                 dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : "0");
@@ -285,14 +285,10 @@ public class ReportController {
                 int maxLap = (lapCount != null && lapCount > 0) ? lapCount - 1 : 0;
                 int maxIndex = Math.max(maxLap, 0);
                 for (int i = startIndex; i <= maxIndex; i++) {
-                    try {
-                        Method getter = TResults.class.getMethod("getTime" + i);
-                        Integer timeValue = (Integer) getter.invoke(result);
-                        if (timeValue != null) {
-                            dto.setLapTime(i, TimeFormatUtil.intToTimeString(timeValue));
-                        }
-                    } catch (Exception e) {
-                        // Ignore if getter doesn't exist or fails
+                    // Calculate lap interval instead of cumulative time
+                    String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, i, includeTimeZero);
+                    if (intervalTime != null) {
+                        dto.setLapTime(i, intervalTime);
                     }
                 }
                 
@@ -359,8 +355,9 @@ public class ReportController {
             dto.setRank1Cat(result.getRank1cat());
             dto.setRank1Mix(result.getRank1mix());
             dto.setRank1Tot(result.getRank1tot());
-            dto.setNetTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
-            dto.setOfficialTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+            // Fixed formulas: netTime = timefinish - timegun, officialTime = timefinish - timestart
+            dto.setNetTime(result.getTimefinish() != null && result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimegun()) : null);
+            dto.setOfficialTime(result.getTimefinish() != null && result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()-result.getTimestart()) : null);
             dto.setTimeStart(result.getTimestart() != null ? TimeFormatUtil.intToTimeString(result.getTimestart()) : null);
             dto.setTimeFinish(result.getTimefinish() != null ? TimeFormatUtil.intToTimeString(result.getTimefinish()) : null);
             dto.setTimeGun(result.getTimegun() != null ? TimeFormatUtil.intToTimeString(result.getTimegun()) : null);
@@ -431,18 +428,14 @@ public class ReportController {
                 int startIndex = includeTimeZero ? 0 : 1;
                 int maxIndex = startIndex + 50;
                 for (int i = startIndex; i < maxIndex; i++) {
-                    try {
-                        Method getter = TResults.class.getMethod("getTime" + i);
-                        Integer timeValue = (Integer) getter.invoke(result);
-                        if (timeValue != null) {
-                            dto.setLapTime(i, TimeFormatUtil.intToTimeString(timeValue));
-                            // Only count actual laps (time1+), not half-lap (time0)
-                            if (i > 0) {
-                                maxLap = i;
-                            }
+                    // Calculate lap interval instead of cumulative time
+                    String intervalTime = LapTimeCalculator.calculateLapIntervalFormatted(result, i, includeTimeZero);
+                    if (intervalTime != null) {
+                        dto.setLapTime(i, intervalTime);
+                        // Only count actual laps (time1+), not half-lap (time0)
+                        if (i > 0) {
+                            maxLap = i;
                         }
-                    } catch (Exception e) {
-                        // Ignore if getter doesn't exist or fails
                     }
                 }
                 

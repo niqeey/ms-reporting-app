@@ -701,16 +701,6 @@ BEGIN
             r.timestart,
             r.timefinish,
             r.timegun,
-            CASE
-                WHEN r.timefinish IS NOT NULL AND r.timestart IS NOT NULL
-                THEN r.timefinish - r.timestart
-                ELSE 0
-            END AS netTime,
-            CASE
-                WHEN r.timefinish IS NOT NULL AND r.timegun IS NOT NULL
-                THEN r.timefinish - r.timegun
-                ELSE 0
-            END AS officialTime,
             r.timecp1,
             r.timecp2,
             r.timecp3,
@@ -742,16 +732,6 @@ BEGIN
             r.timestart,
             r.timefinish,
             r.timegun,
-            CASE
-                WHEN r.timefinish IS NOT NULL AND r.timestart IS NOT NULL
-                THEN r.timefinish - r.timestart
-                ELSE 0
-            END AS netTime,
-            CASE
-                WHEN r.timefinish IS NOT NULL AND r.timegun IS NOT NULL
-                THEN r.timefinish - r.timegun
-                ELSE 0
-            END AS officialTime,
             r.timecp1,
             r.timecp2,
             r.timecp3,
@@ -772,6 +752,259 @@ BEGIN
         AND r.rank1cat > 0
         ORDER BY r.rank1cat ASC;
     END IF;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_SEL_RESULT_RANK1CAT`$$
+CREATE PROCEDURE `P_SEL_RESULT_RANK1CAT`(
+    IN in_EventID VARCHAR(100),
+    IN in_Race VARCHAR(100)
+)
+BEGIN
+    DECLARE sql_query TEXT;
+    DECLARE race_mode TEXT;
+    DECLARE race_CP TEXT;
+    DECLARE result_CP TEXT;
+    DECLARE i INT DEFAULT 1;
+    DECLARE temp TEXT DEFAULT '';
+    DECLARE prev_time TEXT;
+
+    -- Get RACEMODE and CPLIST from t_event_cat
+    SELECT DISTINCT RACEMODE, CPLIST
+    INTO race_mode, race_CP
+    FROM t_event_cat
+    WHERE cat = in_Race AND event_id = in_EventID;
+
+    IF race_mode = 'LAP' THEN
+        -- Build dynamic columns for LAP mode - return raw time values
+        SET temp = '';
+        SET i = 1;
+        
+        -- Return raw time fields without calculations
+        WHILE i <= race_CP DO
+            IF i > 1 THEN
+                SET temp = CONCAT(temp, ', ');
+            END IF;
+            SET temp = CONCAT(temp, 'time', i);
+            SET i = i + 1;
+        END WHILE;
+        SET result_CP = temp;
+
+        -- Build dynamic query for LAP mode
+        SET @sql_query = CONCAT(
+            'SELECT CAT, CATEGORY, RANK1MIX as RK1MIX, RANK1CAT as RK1CAT, Bib, Name, ',
+            'timestart, timegun, timefinish, time0, ',
+            result_CP, ', ',
+            'Remark ',
+            'FROM results ',
+            'WHERE cat = "', in_Race, '" ',
+            'AND eventid = "', in_EventID, '" ',
+            'AND rank1cat > 0 ',
+            'ORDER BY RANK1CAT=0, RANK1CAT;'
+        );
+    ELSE
+        -- For normal mode, parse CPLIST into columns (return raw values)
+        SET result_cp = '';
+        SET @cp_list = race_CP;
+
+        WHILE LOCATE(',', @cp_list) > 0 DO
+            SET @cp = SUBSTRING_INDEX(@cp_list, ',', 1);
+            SET result_cp = CONCAT(result_cp, @cp, ', ');
+            SET @cp_list = SUBSTRING(@cp_list, LOCATE(',', @cp_list) + 1);
+        END WHILE;
+
+        -- Add the last checkpoint
+        SET result_cp = CONCAT(result_cp, @cp_list);
+
+        -- Build dynamic query for non-LAP mode
+        SET @sql_query = CONCAT(
+            'SELECT CATEGORY, RANK1CAT as RK1CAT, Bib, Name, ',
+            'TimeStart, TimeFinish, TimeGun, ',
+            result_cp, ', Remark ',
+            'FROM results ',
+            'WHERE cat = "', in_Race, '" ',
+            'AND eventid = "', in_EventID, '" ',
+            'AND rank1cat > 0 ',
+            'ORDER BY RANK1CAT=0, RANK1CAT;'
+        );
+    END IF;
+
+    -- Log the generated query
+    INSERT INTO servicelog(Query, Query_text, log_time)
+    VALUES('P_SEL_RESULT_RANK1CAT', @sql_query, NOW());
+
+    -- Execute the dynamic query
+    PREPARE stmt FROM @sql_query;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_SEL_RESULT_RANK1MIX`$$
+CREATE PROCEDURE `P_SEL_RESULT_RANK1MIX`(
+    IN in_EventID VARCHAR(100),
+    IN in_dist VARCHAR(100),
+    IN in_gender VARCHAR(100)
+)
+BEGIN
+    DECLARE sql_query TEXT;
+    DECLARE race_mode TEXT;
+    DECLARE race_CP TEXT;
+    DECLARE result_CP TEXT;
+    DECLARE i INT DEFAULT 1;
+    DECLARE temp TEXT DEFAULT '';
+
+    -- Get RACEMODE and CPLIST from t_event_cat
+    SELECT DISTINCT RACEMODE, CPLIST
+    INTO race_mode, race_CP
+    FROM t_event_cat
+    WHERE distance = in_dist AND event_id = in_EventID;
+
+    IF race_mode = 'LAP' THEN
+        -- Build dynamic columns for LAP mode - return raw time values
+        SET temp = '';
+        SET i = 1;
+        
+        -- Return raw time fields without calculations
+        WHILE i <= race_CP DO
+            IF i > 1 THEN
+                SET temp = CONCAT(temp, ', ');
+            END IF;
+            SET temp = CONCAT(temp, 'time', i);
+            SET i = i + 1;
+        END WHILE;
+        SET result_CP = temp;
+
+        -- Build dynamic query for LAP mode
+        SET @sql_query = CONCAT(
+            'SELECT CAT, CATEGORY, RANK1MIX as RK1MIX, RANK1CAT as RK1CAT, Bib, Name, ',
+            'timestart, timegun, timefinish, time0, ',
+            result_CP, ', ',
+            'Remark ',
+            'FROM results ',
+            'WHERE distance = "', in_dist, '" ',
+            'AND eventid = "', in_EventID, '" ',
+            'AND sex = "', in_gender, '" ',
+            'AND rank1mix > 0 ',
+            'ORDER BY RANK1MIX=0, RANK1MIX;'
+        );
+    ELSE
+        -- For normal mode, parse CPLIST into columns (return raw values)
+        SET result_cp = '';
+        SET @cp_list = race_CP;
+
+        WHILE LOCATE(',', @cp_list) > 0 DO
+            SET @cp = SUBSTRING_INDEX(@cp_list, ',', 1);
+            SET result_cp = CONCAT(result_cp, @cp, ', ');
+            SET @cp_list = SUBSTRING(@cp_list, LOCATE(',', @cp_list) + 1);
+        END WHILE;
+
+        -- Add the last checkpoint
+        SET result_cp = CONCAT(result_cp, @cp_list);
+
+        -- Build dynamic query for non-LAP mode
+        SET @sql_query = CONCAT(
+            'SELECT ''RKMIX'' as item, RANK1MIX as RK1MIX, RANK1CAT as RK1CAT, Bib, Name, ',
+            'TimeStart, TimeFinish, TimeGun, ',
+            result_cp, ', Remark ',
+            'FROM results ',
+            'WHERE distance = "', in_dist, '" ',
+            'AND eventid = "', in_EventID, '" ',
+            'AND sex = "', in_gender, '" ',
+            'AND rank1mix > 0 ',
+            'ORDER BY RANK1MIX=0, RANK1MIX;'
+        );
+    END IF;
+
+    -- Log the generated query
+    INSERT INTO servicelog(Query, Query_text, log_time)
+    VALUES('P_SEL_RESULT_RANK1MIX', @sql_query, NOW());
+
+    -- Execute the dynamic query
+    PREPARE stmt FROM @sql_query;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+END$$
+
+DROP PROCEDURE IF EXISTS `P_SEL_RESULT_RANK1TOT`$$
+CREATE PROCEDURE `P_SEL_RESULT_RANK1TOT`(
+    IN in_EventID VARCHAR(100),
+    IN in_dist VARCHAR(100)
+)
+BEGIN
+    DECLARE sql_query TEXT;
+    DECLARE race_mode TEXT;
+    DECLARE race_CP TEXT;
+    DECLARE result_CP TEXT;
+    DECLARE i INT DEFAULT 1;
+    DECLARE temp TEXT DEFAULT '';
+
+    -- Get RACEMODE and CPLIST from t_event_cat
+    SELECT DISTINCT RACEMODE, CPLIST
+    INTO race_mode, race_CP
+    FROM t_event_cat
+    WHERE distance = in_dist AND event_id = in_EventID
+    LIMIT 1;
+
+    IF race_mode = 'LAP' THEN
+        -- Build dynamic columns for LAP mode - return raw time values
+        SET temp = '';
+        SET i = 1;
+        
+        -- Return raw time fields without calculations
+        WHILE i <= race_CP DO
+            IF i > 1 THEN
+                SET temp = CONCAT(temp, ', ');
+            END IF;
+            SET temp = CONCAT(temp, 'time', i);
+            SET i = i + 1;
+        END WHILE;
+        SET result_CP = temp;
+
+        -- Build dynamic query for LAP mode
+        SET @sql_query = CONCAT(
+            'SELECT CAT, CATEGORY, RANK1TOT as RK1TOT, RANK1MIX as RK1MIX, RANK1CAT as RK1CAT, Bib, Name, ',
+            'timestart, timegun, timefinish, time0, ',
+            result_CP, ', ',
+            'Remark ',
+            'FROM results ',
+            'WHERE distance = "', in_dist, '" ',
+            'AND eventid = "', in_EventID, '" ',
+            'AND rank1tot > 0 ',
+            'ORDER BY RANK1TOT=0, RANK1TOT;'
+        );
+    ELSE
+        -- For normal mode, parse CPLIST into columns (return raw values)
+        SET result_cp = '';
+        SET @cp_list = race_CP;
+
+        WHILE LOCATE(',', @cp_list) > 0 DO
+            SET @cp = SUBSTRING_INDEX(@cp_list, ',', 1);
+            SET result_cp = CONCAT(result_cp, @cp, ', ');
+            SET @cp_list = SUBSTRING(@cp_list, LOCATE(',', @cp_list) + 1);
+        END WHILE;
+
+        -- Add the last checkpoint
+        SET result_cp = CONCAT(result_cp, @cp_list);
+
+        -- Build dynamic query for non-LAP mode
+        SET @sql_query = CONCAT(
+            'SELECT ''RKTOT'' as item, RANK1TOT as RK1TOT, RANK1MIX as RK1MIX, RANK1CAT as RK1CAT, Bib, Name, ',
+            'TimeStart, TimeFinish, TimeGun, ',
+            result_cp, ', Remark ',
+            'FROM results ',
+            'WHERE distance = "', in_dist, '" ',
+            'AND eventid = "', in_EventID, '" ',
+            'ORDER BY RANK1TOT=0, RANK1TOT;'
+        );
+    END IF;
+
+    -- Log the generated query
+    INSERT INTO servicelog(Query, Query_text, log_time)
+    VALUES('P_SEL_RESULT_RANK1TOT', @sql_query, NOW());
+
+    -- Execute the dynamic query
+    PREPARE stmt FROM @sql_query;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
 END$$
 
 -- Missing procedure: generate_marathon_result
